@@ -592,7 +592,26 @@ public class TOPK_PSO {
         Collections.sort(utils, Collections.reverseOrder());
         int minUtil = utils.get(k);
         System.out.println("MinUtil:" +minUtil);
-        ETP(tempDb, transUtils, minUtil);
+
+
+        //2nd DB-scan: remove items with TWU < minUtil
+        for (int i = 0; i < tempDb.size(); i++) {
+            List<Pair> revisedTransaction = new ArrayList<>();
+            for (int j = 0; j < tempDb.get(i).size(); j++) {
+                Pair pair = tempDb.get(i).get(j);
+                if (itemTWU1.get(pair.item) >= minUtil) {
+                    revisedTransaction.add(pair);
+                } else {
+                    int TU = transUtils.get(i);
+                    TU -= pair.utility;
+                    transUtils.set(i, TU); //update transaction utility since item is removed
+                }
+            }
+            db.add(revisedTransaction); //store revised transaction
+        }
+        ETP(db, transUtils, minUtil);
+        //optimizeTransactions(db, itemTWU1);
+
     }
 
 
