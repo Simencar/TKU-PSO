@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "connect";
+    final String dataset = "chainstore";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -37,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 3;
+    final int k = 100;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
 
 
@@ -109,7 +109,6 @@ public class TOPK_PSO {
             }
             return (this.fitness < o.fitness) ? -1 : 1;
         }
-
     }
 
     public class Solutions {
@@ -174,6 +173,7 @@ public class TOPK_PSO {
                 //update each particle in population
                 update();
 
+                //gBest update RWS
                 if (minSolutionFitness >= minUtil) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
@@ -499,7 +499,7 @@ public class TOPK_PSO {
      * @param probRange list of probability ranges for each item
      * @return
      */
-    private int rouletteSelect(List<Double> probRange) {
+    private int rouletteSelect(List<Double> probRange) { //TODO: make binary search
         double rand = Math.random();
         if (rand <= probRange.get(0)) {
             return 0;
@@ -639,7 +639,7 @@ public class TOPK_PSO {
 
         ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values()); //TODO: Better way??
         Collections.sort(utils, Collections.reverseOrder());
-        minUtil = utils.get(k);
+        minUtil = (k < utils.size()) ? utils.get(k) : utils.get(utils.size()-1);
         System.out.println("MinUtil:" + minUtil);
 
 
