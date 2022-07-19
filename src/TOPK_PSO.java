@@ -26,7 +26,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "chess";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 50;
+    final int k = 3;
     //final int minUtil = 0; // minimum utility threshold
     final boolean closed = true; //true = find CHUIS, false = find HUIS
     final boolean prune = false; //true = ETP, false = traditional TWU-Model
@@ -149,6 +149,7 @@ public class TOPK_PSO {
 
         System.out.println("TWU_SIZE: "+items.size());
         checkMemory();
+        System.out.println("Memory: " +maxMemory);
 
         //utilities used after each population update
         List<Double> probChui = new ArrayList<>(); //roulette probabilities for current discovered CHUIs
@@ -549,7 +550,7 @@ public class TOPK_PSO {
         return percentsChui;
     }
 
-    private void init() {
+    private void init2() {
         Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
         List<Integer> transUtils = new ArrayList<>(); //holds TU-value for each transaction
         List<List<Pair>> db = new ArrayList<>();
@@ -610,22 +611,16 @@ public class TOPK_PSO {
             }
             db.add(revisedTransaction); //store revised transaction
         }
-
-        optimizeTransactions(db, itemTWU1);
-        //optimizeTransactions(db, itemTWU1);
+        ETP(db, transUtils, minUtil);
 
     }
 
-
-    /**
-     * Reads DB from input file and initializes the pruning strategies + transaction optimizations
-     */
-    /*
-    private void readData() {
+    private void init() {
         Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
         List<Integer> transUtils = new ArrayList<>(); //holds TU-value for each transaction
         List<List<Pair>> db = new ArrayList<>();
-        List<List<Pair>> tempDb = new ArrayList<>();
+        Map<Integer, Integer> totalItemUtil = new HashMap<>(); //used to determine minUtil
+
         String currentLine;
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
@@ -637,51 +632,66 @@ public class TOPK_PSO {
                 int transactionUtility = Integer.parseInt(split[1]);
                 totalUtil += transactionUtility;
                 transUtils.add(transactionUtility);
-                List<Pair> transaction = new ArrayList<>();
+                //List<Pair> transaction = new ArrayList<>();
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    Pair pair = new Pair(item, util);
-                    transaction.add(pair);
                     Integer twu = itemTWU1.get(item);
                     twu = (twu == null) ? transactionUtility : twu + transactionUtility;
                     itemTWU1.put(item, twu);
+                    //calculate utility of size 1 itemsets
+                    Integer currUtil = totalItemUtil.get(item);
+                    currUtil = (currUtil == null) ? util : util + currUtil;
+                    totalItemUtil.put(item, currUtil);
                 }
-                tempDb.add(transaction);
             }
         } catch (Exception e) {
             // catches exception if error while reading the input file
             e.printStackTrace();
         }
-        //2nd DB-scan: remove items with TWU < minUtil
-        for (int i = 0; i < tempDb.size(); i++) {
-            List<Pair> revisedTransaction = new ArrayList<>();
-            for (int j = 0; j < tempDb.get(i).size(); j++) {
-                Pair pair = tempDb.get(i).get(j);
-                if (itemTWU1.get(pair.item) >= minUtil) {
-                    revisedTransaction.add(pair);
-                } else {
-                    int TU = transUtils.get(i);
-                    TU -= pair.utility;
-                    transUtils.set(i, TU); //update transaction utility since item is removed
-                }
-            }
-            db.add(revisedTransaction); //store revised transaction
-        }
-        if (prune) {
-            ETP(db, transUtils); //Use additional pruning with ETP
-        } else {
-            optimizeTransactions(db, itemTWU1);
-        }
 
+        ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values());
+        Collections.sort(utils, Collections.reverseOrder());
+        int minUtil = utils.get(k);
+        System.out.println("MinUtil:" +minUtil);
+
+
+        try (BufferedReader data = new BufferedReader(new InputStreamReader(
+                new FileInputStream(dataPath)))) {
+            //2nd DB-Scan: prune
+            int tid = 0;
+            while ((currentLine = data.readLine()) != null) {
+                String[] split = currentLine.split(":");
+                String[] items = split[0].split(" ");
+                String[] utilities = split[2].split(" ");
+                List<Pair> transaction = new ArrayList<>();
+                for (int i = 0; i < items.length; i++) {
+                    int item = Integer.parseInt(items[i]);
+                    int util = Integer.parseInt(utilities[i]);
+                    if(itemTWU1.get(item) >= minUtil) {
+                        transaction.add(new Pair(item, util));
+                    }
+                    else {
+                        int TU = transUtils.get(tid) - util;
+                        transUtils.set(tid, TU);
+                    }
+
+                }
+                db.add(transaction);
+                tid++;
+            }
+        } catch (Exception e) {
+            // catches exception if error while reading the input file
+            e.printStackTrace();
+        }
+        ETP(db, transUtils, minUtil);
     }
 
-     */
 
-    private List<List<Pair>> ETP2(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {
-        List<List<Pair>> revisedDB = new ArrayList<>();
-        Map<Integer, Integer> itemTWU1 = new HashMap<>();
+
+    private void ETP2(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {
         while(true) {
+            Map<Integer, Integer> itemTWU1 = new HashMap<>();
             boolean pruned = false;
             for (int i = 0; i < db.size(); i++) {
                 int transactionUtility = transUtils.get(i);
@@ -702,16 +712,15 @@ public class TOPK_PSO {
                         revisedTransaction.add(db.get(i).get(j)); //add item to revised transaction
                     } else { // item is 1-LTWUI
                         pruned = true;
-                        int TU = transUtils.get(i);
-                        TU -= db.get(i).get(j).utility;
+                        int TU = transUtils.get(i) - db.get(i).get(j).utility;
                         transUtils.set(i, TU); //update transaction utility
                     }
                 }
-                revisedDB.add(revisedTransaction); //store the revised transaction
+                db.set(i, revisedTransaction);
             }
-            db = revisedDB;
             if(!pruned) {
-                return db;
+                optimizeTransactions(db, itemTWU1);
+                break;
             }
         }
     }
@@ -722,8 +731,7 @@ public class TOPK_PSO {
      * @param db         The database to prune
      * @param transUtils The current transaction utilities of the database
      */
-    private void ETP(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {//TODO: make iterative
-        List<List<Pair>> revisedDB = new ArrayList<>();
+    private void ETP(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {
         Map<Integer, Integer> itemTWU1 = new HashMap<>();
         boolean pruned = false;
         //calculate TWU of each item
@@ -746,17 +754,16 @@ public class TOPK_PSO {
                     revisedTransaction.add(db.get(i).get(j)); //add item to revised transaction
                 } else { // item is 1-LTWUI
                     pruned = true;
-                    int TU = transUtils.get(i);
-                    TU -= db.get(i).get(j).utility;
+                    int TU = transUtils.get(i) - db.get(i).get(j).utility;
                     transUtils.set(i, TU); //update transaction utility
                 }
             }
-            revisedDB.add(revisedTransaction); //store the revised transaction
+            db.set(i, revisedTransaction);
         }
         if (pruned) { //item was removed, repeat pruning
-            ETP(revisedDB, transUtils, minUtil);
+            ETP(db, transUtils, minUtil);
         } else { //pruning is finished, optimize DB
-            optimizeTransactions(revisedDB, itemTWU1);
+            optimizeTransactions(db, itemTWU1);
 
         }
     }
@@ -788,7 +795,7 @@ public class TOPK_PSO {
                     items.add(itemClass);
                 }
                 int twu = itemTWU1.get(item); //get the twu of this item
-                item = itemNames.get(item); //get the name of the item
+                item = itemNames.get(item); //get the new name of the item
                 db.get(i).get(j).item = item; //change the name of the item
                 Item it = items.get(item - 1);
                 it.TIDS.set(transID); //update the transaction bit for the item
