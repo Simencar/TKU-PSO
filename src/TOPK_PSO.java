@@ -82,7 +82,7 @@ public class TOPK_PSO {
         }
     }
 
-    // this class represent the particles
+    // this class represent a particle
     private static class Particle implements Comparable<Particle> {
         BitSet X; // items contained in particle (encoding vector)
         int fitness; // fitness/utility of particle
@@ -262,7 +262,7 @@ public class TOPK_PSO {
      * @param p The particle
      * @return orgBitSet: The transactions the itemset of the particle occur (TidSet)
      */
-    private BitSet pev_check(Particle p) {
+    private BitSet pev_check(Particle p) { //TODO: remove item if TWU less than minSolutionFitness
         int item1 = p.X.nextSetBit(0);
         if (item1 == -1) {
             return null;
