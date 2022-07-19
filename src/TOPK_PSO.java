@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "connect";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -152,7 +152,6 @@ public class TOPK_PSO {
 
         System.out.println("TWU_SIZE: " + items.size());
         checkMemory();
-        System.out.println("Memory: " + maxMemory);
 
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
@@ -166,7 +165,7 @@ public class TOPK_PSO {
             std = std / items.size();
             //only use avgEstimates if the standard deviation is small compared to the minUtil
             //avgEstimate = (double) std / minUtil < 0.0001;
-            avgEstimate = false;
+            avgEstimate = true;
             //initialize the population
             generatePop();
             List<Double> probRange = new ArrayList<>(); //roulette probabilities for current discovered HUIs
