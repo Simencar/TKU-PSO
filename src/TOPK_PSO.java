@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 100;
+    final int k = 50;
     //final int minUtil = 0; // minimum utility threshold
     final boolean closed = true; //true = find CHUIS, false = find HUIS
     final boolean prune = false; //true = ETP, false = traditional TWU-Model
@@ -145,6 +145,7 @@ public class TOPK_PSO {
         startTimestamp = System.currentTimeMillis();
         sols = new Solutions(k);
         init(); //reads input file and prunes DB
+
 
         System.out.println("TWU_SIZE: "+items.size());
         checkMemory();
@@ -609,7 +610,8 @@ public class TOPK_PSO {
             }
             db.add(revisedTransaction); //store revised transaction
         }
-        ETP(db, transUtils, minUtil);
+
+        optimizeTransactions(db, itemTWU1);
         //optimizeTransactions(db, itemTWU1);
 
     }
@@ -676,6 +678,44 @@ public class TOPK_PSO {
 
      */
 
+    private List<List<Pair>> ETP2(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {
+        List<List<Pair>> revisedDB = new ArrayList<>();
+        Map<Integer, Integer> itemTWU1 = new HashMap<>();
+        while(true) {
+            boolean pruned = false;
+            for (int i = 0; i < db.size(); i++) {
+                int transactionUtility = transUtils.get(i);
+                for (int j = 0; j < db.get(i).size(); j++) {
+                    int item = db.get(i).get(j).item;
+                    Integer twu = itemTWU1.get(item);
+                    twu = (twu == null) ? transactionUtility : twu + transactionUtility;
+                    itemTWU1.put(item, twu);
+                }
+            }
+            //check if any item has TWU < minUtil
+            for (int i = 0; i < db.size(); i++) {
+                List<Pair> revisedTransaction = new ArrayList<>();
+                for (int j = 0; j < db.get(i).size(); j++) {
+                    int item = db.get(i).get(j).item;
+                    int twu = itemTWU1.get(item);
+                    if (twu >= minUtil) {
+                        revisedTransaction.add(db.get(i).get(j)); //add item to revised transaction
+                    } else { // item is 1-LTWUI
+                        pruned = true;
+                        int TU = transUtils.get(i);
+                        TU -= db.get(i).get(j).utility;
+                        transUtils.set(i, TU); //update transaction utility
+                    }
+                }
+                revisedDB.add(revisedTransaction); //store the revised transaction
+            }
+            db = revisedDB;
+            if(!pruned) {
+                return db;
+            }
+        }
+    }
+
     /**
      * Recursively calculates item-TWUs, removes 1-LTWUI and updates TUs, until no items are removed.
      *
@@ -717,6 +757,7 @@ public class TOPK_PSO {
             ETP(revisedDB, transUtils, minUtil);
         } else { //pruning is finished, optimize DB
             optimizeTransactions(revisedDB, itemTWU1);
+
         }
     }
 
