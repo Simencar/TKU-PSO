@@ -22,12 +22,15 @@ public class TOPK_PSO {
     int minSolutionFitness = 0;
     Solutions sols;
     int count = 0;
+    boolean newS = false;
+    long disUtil = 0;
+    int minUtil;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
 
 
     //file paths
-    final String dataset = "retail";
+    final String dataset = "chainstore";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -35,9 +38,8 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 3;
-    //final int minUtil = 0; // minimum utility threshold
-    final boolean closed = true; //true = find CHUIS, false = find HUIS
+    final int k = 50;
+    final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean prune = false; //true = ETP, false = traditional TWU-Model
 
 
@@ -122,12 +124,14 @@ public class TOPK_PSO {
 
         public void add(Particle p) {
             if (sol.size() == size) {
-                sol.pollFirst();
+                disUtil -= sol.pollFirst().fitness;
             }
             sol.add(p);
+            disUtil += p.fitness;
+            newS = true;
         }
 
-        public TreeSet getSol() {
+        public TreeSet<Particle> getSol() {
             return sol;
         }
 
@@ -148,16 +152,10 @@ public class TOPK_PSO {
         init(); //reads input file and prunes DB
 
 
-        System.out.println("TWU_SIZE: "+items.size());
+        System.out.println("TWU_SIZE: " + items.size());
         checkMemory();
-        System.out.println("Memory: " +maxMemory);
-
-        //utilities used after each population update
-        List<Double> probChui = new ArrayList<>(); //roulette probabilities for current discovered CHUIs
-        int nPatterns = 0; // number of CHUIs discovered last iteration
-        int pos = 0; //position of gBest in percentChui
-        int lastImproved = 0; //the number of iterations since a CHUI was discovered
-        boolean roulette = true; // roulette wheel selection
+        System.out.println("Memory: " + maxMemory);
+        
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
         std = 0; // the standard deviation
@@ -173,50 +171,30 @@ public class TOPK_PSO {
             avgEstimate = false;
             //initialize the population
             generatePop();
+            List<Double> probRange = new ArrayList<>(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
+                newS = false;
                 //update each particle in population
                 update();
 
-                //gBest update strategy
-                if (chuis.size() > 1) {
-                    //SELECT GBEST WITH RWS
-                    if (roulette) {
-                        if (nPatterns != chuis.size()) { //new CHUIs discovered
-                            probChui = rouletteProbChui(); //recalculate roulette probability ranges
-                            lastImproved = 0;
-                        } else {
-                            lastImproved++;
-                            if (lastImproved > 50) {
-                                roulette = false; //starting to converge, disable RWS
-                            }
-                        }
-                        pos = rouletteSelect(probChui); //select gBest with RWS
+                if (minSolutionFitness >= minUtil) {
+                    if (newS) { //new solutions are discovered, probability range must be updated
+                        probRange = rouletteProbKHUI();
                     }
-                    //SELECT GBEST AS NEXT CHUI IN 'chuis'
-                    else {
-                        if (nPatterns == chuis.size()) { //only change gBest if no CHUIs discovered last iteration
-                            if (pos < chuis.size() - 1) {
-                                pos++;
-                            } else {
-                                pos = 0; //end of list reached, start at front again
-                            }
-                        }
-                    }
-                    gBest = new Particle(chuis.get(pos).X, chuis.get(pos).fitness); //update gBest
+                    int pos = rouletteSelect(probRange);
+                    selectGBest(pos);
                 }
-                if (nPatterns != chuis.size()) {
-                    //it.add(i);
-                    //pat.add(chuis.size());
-                    //System.out.println("iteration: " + i + " CHUIs: " + chuis.size());
+
+                if (newS) {
+                    System.out.println("iteration: " + i);
                 }
-               // System.out.println("iteration: " + i + " minFit: " + minSolutionFitness);
 
 
                 if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
                     //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
                     std = ((double) lowEst / highEst < 0.01) ? 1 : std;
                 }
-                nPatterns = chuis.size();
+
             }
         }
         endTimestamp = System.currentTimeMillis();
@@ -261,10 +239,12 @@ public class TOPK_PSO {
                             chuis.add(s);
                             sols.add(s);
                             minSolutionFitness = sols.getMin();
-
                         }
                     } else {
-                        chuis.add(new Particle(p.X, p.fitness));
+                        Particle s = new Particle(p.X, p.fitness);
+                        chuis.add(s);
+                        sols.add(s);
+                        minSolutionFitness = sols.getMin();
                     }
                 }
             }
@@ -445,7 +425,10 @@ public class TOPK_PSO {
                             }
                         } else {
                             // particle is HUI
-                            chuis.add(new Particle(p.X, p.fitness));
+                            Particle s = new Particle(p.X, p.fitness);
+                            chuis.add(s);
+                            sols.add(s);
+                            minSolutionFitness = sols.getMin();
                         }
                     }
                     //bitset after pev
@@ -539,6 +522,17 @@ public class TOPK_PSO {
         return pos;
     }
 
+    private void selectGBest(int pos) {
+        int c = 0;
+        for (Particle p : sols.getSol()) {
+            if (c == pos) {
+                gBest = new Particle(p.X, p.fitness);
+                break;
+            }
+            c++;
+        }
+    }
+
     private List<Double> rouletteProbChui() {
         double sum = 0;
         double tempSum = 0;
@@ -552,6 +546,21 @@ public class TOPK_PSO {
             percentsChui.add(percent);
         }
         return percentsChui;
+    }
+
+    private List<Double> rouletteProbKHUI() {
+        double sum = 0;
+        double tempSum = 0;
+        List<Double> rouletteProbs = new ArrayList<>();
+        for (Particle hui : sols.getSol()) {
+            sum += hui.fitness;
+        }
+        for (Particle hui : sols.getSol()) {
+            tempSum += hui.fitness;
+            double percent = tempSum / sum;
+            rouletteProbs.add(percent);
+        }
+        return rouletteProbs;
     }
 
     private void init2() {
@@ -596,7 +605,7 @@ public class TOPK_PSO {
         ArrayList<Integer> utils = new ArrayList<>(itemUtil.values());
         Collections.sort(utils, Collections.reverseOrder());
         int minUtil = utils.get(k);
-        System.out.println("MinUtil:" +minUtil);
+        System.out.println("MinUtil:" + minUtil);
 
 
         //2nd DB-scan: remove items with TWU < minUtil
@@ -613,7 +622,7 @@ public class TOPK_PSO {
             }
             db.add(revisedTransaction); //store revised transaction
         }
-        ETP(db, transUtils, minUtil);
+        ETP(db, transUtils);
 
     }
 
@@ -652,8 +661,8 @@ public class TOPK_PSO {
 
         ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values()); //TODO: Better way??
         Collections.sort(utils, Collections.reverseOrder());
-        int minUtil = utils.get(k);
-        System.out.println("MinUtil:" +minUtil);
+        minUtil = utils.get(k);
+        System.out.println("MinUtil:" + minUtil);
 
 
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
@@ -668,10 +677,9 @@ public class TOPK_PSO {
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    if(itemTWU1.get(item) >= minUtil) {
+                    if (itemTWU1.get(item) >= minUtil) {
                         transaction.add(new Pair(item, util));
-                    }
-                    else {
+                    } else {
                         int TU = transUtils.get(tid) - util;
                         transUtils.set(tid, TU);
                     }
@@ -683,13 +691,12 @@ public class TOPK_PSO {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        ETP(db, transUtils, minUtil);
+        ETP(db, transUtils);
     }
 
 
-
-    private void ETP2(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {
-        while(true) {
+    private void ETP2(List<List<Pair>> db, List<Integer> transUtils) {
+        while (true) {
             Map<Integer, Integer> itemTWU1 = new HashMap<>();
             boolean pruned = false;
             for (int i = 0; i < db.size(); i++) {
@@ -717,7 +724,7 @@ public class TOPK_PSO {
                 }
                 db.set(i, revisedTransaction);
             }
-            if(!pruned) {
+            if (!pruned) {
                 optimizeTransactions(db, itemTWU1);
                 break;
             }
@@ -730,7 +737,7 @@ public class TOPK_PSO {
      * @param db         The database to prune
      * @param transUtils The current transaction utilities of the database
      */
-    private void ETP(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {
+    private void ETP(List<List<Pair>> db, List<Integer> transUtils) {
         Map<Integer, Integer> itemTWU1 = new HashMap<>();
         boolean pruned = false;
         //calculate TWU of each item
@@ -760,7 +767,7 @@ public class TOPK_PSO {
             db.set(i, revisedTransaction);
         }
         if (pruned) { //item was removed, repeat pruning
-            ETP(db, transUtils, minUtil);
+            ETP(db, transUtils);
         } else { //pruning is finished, optimize DB
             optimizeTransactions(db, itemTWU1);
 
@@ -865,6 +872,7 @@ public class TOPK_PSO {
         System.out.println(" Total time ~ " + (endTimestamp - startTimestamp)
                 + " ms");
         System.out.println(" Memory ~ " + maxMemory + " MB");
+        System.out.println(" Discovered Utility: " + disUtil);
         System.out.println(" Closed High-utility itemsets count : " + chuis.size());
         System.out
                 .println("===================================================");
