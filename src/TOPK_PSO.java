@@ -26,7 +26,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chess";
+    final String dataset = "chainstore";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,8 +34,8 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1;
-    final int minUtil = 0; // minimum utility threshold
+    final int k = 100;
+    //final int minUtil = 0; // minimum utility threshold
     final boolean closed = true; //true = find CHUIS, false = find HUIS
     final boolean prune = false; //true = ETP, false = traditional TWU-Model
 
@@ -144,8 +144,9 @@ public class TOPK_PSO {
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
         sols = new Solutions(k);
-        readData(); //reads input file and prunes DB
+        init(); //reads input file and prunes DB
 
+        System.out.println("TWU_SIZE: "+items.size());
         checkMemory();
 
         //utilities used after each population update
@@ -165,7 +166,8 @@ public class TOPK_PSO {
         if (!items.isEmpty()) {
             std = std / items.size();
             //only use avgEstimates if the standard deviation is small compared to the minUtil
-            avgEstimate = (double) std / minUtil < 0.0001;
+            //avgEstimate = (double) std / minUtil < 0.0001;
+            avgEstimate = false;
             //initialize the population
             generatePop();
             for (int i = 0; i < iterations; i++) {
@@ -202,8 +204,9 @@ public class TOPK_PSO {
                 if (nPatterns != chuis.size()) {
                     //it.add(i);
                     //pat.add(chuis.size());
-                    System.out.println("iteration: " + i + " CHUIs: " + chuis.size());
+                    //System.out.println("iteration: " + i + " CHUIs: " + chuis.size());
                 }
+               // System.out.println("iteration: " + i + " minFit: " + minSolutionFitness);
 
                 if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
                     //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
@@ -545,10 +548,58 @@ public class TOPK_PSO {
         return percentsChui;
     }
 
+    private void init() {
+        Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
+        List<Integer> transUtils = new ArrayList<>(); //holds TU-value for each transaction
+        List<List<Pair>> db = new ArrayList<>();
+        List<List<Pair>> tempDb = new ArrayList<>();
+
+        Map<Integer, Integer> itemUtil = new HashMap<>();
+
+        String currentLine;
+        try (BufferedReader data = new BufferedReader(new InputStreamReader(
+                new FileInputStream(dataPath)))) {
+            //1st DB-Scan: calculate TWU value for each item
+            while ((currentLine = data.readLine()) != null) {
+                String[] split = currentLine.split(":");
+                String[] items = split[0].split(" ");
+                String[] utilities = split[2].split(" ");
+                int transactionUtility = Integer.parseInt(split[1]);
+                totalUtil += transactionUtility;
+                transUtils.add(transactionUtility);
+                List<Pair> transaction = new ArrayList<>();
+                for (int i = 0; i < items.length; i++) {
+                    int item = Integer.parseInt(items[i]);
+                    int util = Integer.parseInt(utilities[i]);
+                    Pair pair = new Pair(item, util);
+                    transaction.add(pair);
+                    Integer twu = itemTWU1.get(item);
+                    twu = (twu == null) ? transactionUtility : twu + transactionUtility;
+                    itemTWU1.put(item, twu);
+                    //calculate utility of size 1 itemsets
+                    Integer currUtil = itemUtil.get(item);
+                    currUtil = (currUtil == null) ? util : util + currUtil;
+                    itemUtil.put(item, currUtil);
+                }
+                tempDb.add(transaction);
+            }
+        } catch (Exception e) {
+            // catches exception if error while reading the input file
+            e.printStackTrace();
+        }
+
+        ArrayList<Integer> utils = new ArrayList<>(itemUtil.values());
+        Collections.sort(utils, Collections.reverseOrder());
+        int minUtil = utils.get(k);
+        System.out.println("MinUtil:" +minUtil);
+        ETP(tempDb, transUtils, minUtil);
+    }
+
 
     /**
      * Reads DB from input file and initializes the pruning strategies + transaction optimizations
      */
+    /*
     private void readData() {
         Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
         List<Integer> transUtils = new ArrayList<>(); //holds TU-value for each transaction
@@ -604,13 +655,15 @@ public class TOPK_PSO {
 
     }
 
+     */
+
     /**
      * Recursively calculates item-TWUs, removes 1-LTWUI and updates TUs, until no items are removed.
      *
      * @param db         The database to prune
      * @param transUtils The current transaction utilities of the database
      */
-    private void ETP(List<List<Pair>> db, List<Integer> transUtils) {//TODO: make iterative
+    private void ETP(List<List<Pair>> db, List<Integer> transUtils, int minUtil) {//TODO: make iterative
         List<List<Pair>> revisedDB = new ArrayList<>();
         Map<Integer, Integer> itemTWU1 = new HashMap<>();
         boolean pruned = false;
@@ -642,7 +695,7 @@ public class TOPK_PSO {
             revisedDB.add(revisedTransaction); //store the revised transaction
         }
         if (pruned) { //item was removed, repeat pruning
-            ETP(revisedDB, transUtils);
+            ETP(revisedDB, transUtils, minUtil);
         } else { //pruning is finished, optimize DB
             optimizeTransactions(revisedDB, itemTWU1);
         }
