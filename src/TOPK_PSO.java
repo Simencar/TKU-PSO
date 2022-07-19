@@ -11,7 +11,6 @@ public class TOPK_PSO {
     private Particle[] population;
     private int maxTransactionLength = 0;
     private ArrayList<Item> items = new ArrayList<>();
-    private List<Particle> chuis = new ArrayList<>();
     private HashSet<BitSet> explored = new HashSet<>();
     private HashMap<Integer, Integer> itemNamesRev = new HashMap<>();
     private int shortestTransactionID;
@@ -38,9 +37,8 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 50;
+    final int k = 3;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
-    final boolean prune = false; //true = ETP, false = traditional TWU-Model
 
 
     //stats
@@ -155,7 +153,7 @@ public class TOPK_PSO {
         System.out.println("TWU_SIZE: " + items.size());
         checkMemory();
         System.out.println("Memory: " + maxMemory);
-        
+
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
         std = 0; // the standard deviation
@@ -236,13 +234,11 @@ public class TOPK_PSO {
                         //check if particle is closed
                         if (isClosed(p, shortestTransactionID, tidSet)) {
                             Particle s = new Particle(p.X, p.fitness);
-                            chuis.add(s);
                             sols.add(s);
                             minSolutionFitness = sols.getMin();
                         }
                     } else {
                         Particle s = new Particle(p.X, p.fitness);
-                        chuis.add(s);
                         sols.add(s);
                         minSolutionFitness = sols.getMin();
                     }
@@ -270,7 +266,7 @@ public class TOPK_PSO {
     private BitSet pev_check(Particle p) {
         int item1 = p.X.nextSetBit(0);
         if (item1 == -1) {
-            return null; //TODO: create new particle?? and why does this seem to always happen once
+            return null;
         }
         BitSet orgBitSet = (BitSet) items.get(item1 - 1).TIDS.clone();
         BitSet copyBitSet = (BitSet) orgBitSet.clone();
@@ -378,12 +374,11 @@ public class TOPK_PSO {
     /**
      * Updates population and checks for new CHUIs
      */
-    private void update() { //TODO: Memory opt.
-        List<Integer> diffList;
+    private void update() {
         for (int i = 0; i < pop_size; i++) {
             Particle p = population[i];
             //different bits between pBest and current particle
-            diffList = bitDiff(pBest[i], p);
+            List<Integer> diffList = bitDiff(pBest[i], p);
             //change a random amount of these bits
             changeParticle(diffList, i);
             //repeat for gBest
@@ -419,14 +414,12 @@ public class TOPK_PSO {
                             if (isClosed(p, shortestTransactionID, tidSet)) {
                                 //Particle is CHUI
                                 Particle s = new Particle(p.X, p.fitness);
-                                chuis.add(s);
                                 sols.add(s);
                                 minSolutionFitness = sols.getMin();
                             }
                         } else {
                             // particle is HUI
                             Particle s = new Particle(p.X, p.fitness);
-                            chuis.add(s);
                             sols.add(s);
                             minSolutionFitness = sols.getMin();
                         }
@@ -533,20 +526,6 @@ public class TOPK_PSO {
         }
     }
 
-    private List<Double> rouletteProbChui() {
-        double sum = 0;
-        double tempSum = 0;
-        List<Double> percentsChui = new ArrayList<>();
-        for (Particle hui : chuis) {
-            sum += hui.fitness;
-        }
-        for (Particle hui : chuis) {
-            tempSum += hui.fitness;
-            double percent = tempSum / sum;
-            percentsChui.add(percent);
-        }
-        return percentsChui;
-    }
 
     private List<Double> rouletteProbKHUI() {
         double sum = 0;
@@ -819,7 +798,7 @@ public class TOPK_PSO {
 
     private void writeOut() throws IOException {
         StringBuilder sb = new StringBuilder();
-        for (Particle p : chuis) {
+        for (Particle p : sols.getSol()) {
             for (int i = p.X.nextSetBit(0); i != -1; i = p.X.nextSetBit(i + 1)) {
                 sb.append(itemNamesRev.get(i));
                 sb.append(" ");
@@ -873,7 +852,6 @@ public class TOPK_PSO {
                 + " ms");
         System.out.println(" Memory ~ " + maxMemory + " MB");
         System.out.println(" Discovered Utility: " + disUtil);
-        System.out.println(" Closed High-utility itemsets count : " + chuis.size());
         System.out
                 .println("===================================================");
     }
