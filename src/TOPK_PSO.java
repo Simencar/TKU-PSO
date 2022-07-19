@@ -21,12 +21,13 @@ public class TOPK_PSO {
     private int highEst = 0;
     int minSolutionFitness = 0;
     Solutions sols;
+    int count = 0;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
 
 
     //file paths
-    final String dataset = "chess";
+    final String dataset = "retail";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -210,6 +211,7 @@ public class TOPK_PSO {
                 }
                // System.out.println("iteration: " + i + " minFit: " + minSolutionFitness);
 
+
                 if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
                     //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
                     std = ((double) lowEst / highEst < 0.01) ? 1 : std;
@@ -221,6 +223,7 @@ public class TOPK_PSO {
         checkMemory();
         writeOut();
         System.out.println(sols.getSol());
+        System.out.println("skipped: " + count);
         //writeRes();
     }
 
@@ -361,6 +364,7 @@ public class TOPK_PSO {
         if (idx != -1) {
             if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
                 // Skip fitness calculation
+                count++;
                 return 0;
             }
         }
@@ -586,7 +590,6 @@ public class TOPK_PSO {
                 tempDb.add(transaction);
             }
         } catch (Exception e) {
-            // catches exception if error while reading the input file
             e.printStackTrace();
         }
 
@@ -604,8 +607,7 @@ public class TOPK_PSO {
                 if (itemTWU1.get(pair.item) >= minUtil) {
                     revisedTransaction.add(pair);
                 } else {
-                    int TU = transUtils.get(i);
-                    TU -= pair.utility;
+                    int TU = transUtils.get(i) - pair.utility;
                     transUtils.set(i, TU); //update transaction utility since item is removed
                 }
             }
@@ -632,7 +634,6 @@ public class TOPK_PSO {
                 int transactionUtility = Integer.parseInt(split[1]);
                 totalUtil += transactionUtility;
                 transUtils.add(transactionUtility);
-                //List<Pair> transaction = new ArrayList<>();
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
@@ -646,11 +647,10 @@ public class TOPK_PSO {
                 }
             }
         } catch (Exception e) {
-            // catches exception if error while reading the input file
             e.printStackTrace();
         }
 
-        ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values());
+        ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values()); //TODO: Better way??
         Collections.sort(utils, Collections.reverseOrder());
         int minUtil = utils.get(k);
         System.out.println("MinUtil:" +minUtil);
@@ -681,7 +681,6 @@ public class TOPK_PSO {
                 tid++;
             }
         } catch (Exception e) {
-            // catches exception if error while reading the input file
             e.printStackTrace();
         }
         ETP(db, transUtils, minUtil);
