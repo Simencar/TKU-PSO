@@ -15,7 +15,6 @@ public class TOPK_PSO {
     private HashMap<Integer, Integer> itemNamesRev = new HashMap<>();
     private int shortestTransactionID;
     private int std;
-    private boolean avgEstimate;
     private int lowEst = 0;
     private int highEst = 0;
     int minSolutionFitness = 0;
@@ -37,9 +36,10 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 50;
+    final int k = 500;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean runPrune = false;
+    final boolean avgEstimate = false;
 
 
     //stats
@@ -118,11 +118,11 @@ public class TOPK_PSO {
 
         public Solutions(int size) {
             this.size = size;
-        }
+        } //TODO: get size
 
         public void add(Particle p) {
             if (sol.size() == size) {
-                sol.pollFirst(); //TODO: Something wrong, verify by summing list at end (chess, k=50, avgEST)
+                sol.pollFirst();
             }
             sol.add(p);
             newS = true;
@@ -164,7 +164,6 @@ public class TOPK_PSO {
             std = std / items.size();
             //only use avgEstimates if the standard deviation is small compared to the minUtil
             //avgEstimate = (double) std / minUtil < 0.0001;
-            avgEstimate = true;
             //initialize the population
             generatePop();
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
@@ -228,7 +227,7 @@ public class TOPK_PSO {
             pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
             if (!explored.contains(p.X)) {
                 //check if HUI/CHUI
-                if (p.fitness > minSolutionFitness) {
+                if (p.fitness > minSolutionFitness || sols.getSol().size() < k) {
                     if (closed) {
                         //check if particle is closed
                         if (isClosed(p, shortestTransactionID, tidSet)) {
@@ -337,7 +336,7 @@ public class TOPK_PSO {
         int est = p.estFitness * support;
         int buffer = avgEstimate ? (std * support) : 0;
         if (idx != -1) {
-            if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
+            if (est + buffer < minSolutionFitness && est < pBest[idx].fitness && sols.getSol().size() == k) {  //TODO: TEST IF NECESSARY
                 // Skip fitness calculation
                 return 0;
             }
@@ -407,7 +406,7 @@ public class TOPK_PSO {
                             gBest = new Particle(p.X, p.fitness);
                         }
                     }
-                    if (p.fitness >= minSolutionFitness) {
+                    if (p.fitness >= minSolutionFitness || sols.getSol().size() < k) {
                         if (closed) {
                             if (isClosed(p, shortestTransactionID, tidSet)) {
                                 //Particle is CHUI
