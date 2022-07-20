@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "chess";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -37,8 +37,9 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 100;
+    final int k = 1000;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
+    final boolean runPrune = false;
 
 
     //stats
@@ -164,7 +165,7 @@ public class TOPK_PSO {
             std = std / items.size();
             //only use avgEstimates if the standard deviation is small compared to the minUtil
             //avgEstimate = (double) std / minUtil < 0.0001;
-            avgEstimate = true;
+            avgEstimate = false;
             //initialize the population
             generatePop();
             List<Double> probRange = new ArrayList<>(); //roulette probabilities for current discovered HUIs
@@ -262,7 +263,7 @@ public class TOPK_PSO {
      * @param p The particle
      * @return orgBitSet: The transactions the itemset of the particle occur (TidSet)
      */
-    private BitSet pev_check(Particle p) { //TODO: remove item if TWU less than minSolutionFitness
+    private BitSet pev_check(Particle p) { 
         int item1 = p.X.nextSetBit(0);
         if (item1 == -1) {
             return null;
@@ -339,7 +340,6 @@ public class TOPK_PSO {
         if (idx != -1) {
             if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
                 // Skip fitness calculation
-                count++;
                 return 0;
             }
         }
@@ -373,7 +373,7 @@ public class TOPK_PSO {
     /**
      * Updates population and checks for new CHUIs
      */
-    private void update() {
+    private void update() { //TODO: prune check TWU for new items
         for (int i = 0; i < pop_size; i++) {
             Particle p = population[i];
             //different bits between pBest and current particle
@@ -639,7 +639,7 @@ public class TOPK_PSO {
 
         ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values()); //TODO: Better way??
         Collections.sort(utils, Collections.reverseOrder());
-        minUtil = (k < utils.size()) ? utils.get(k) : utils.get(utils.size()-1);
+        minUtil = (k < utils.size()) ? utils.get(k) : utils.get(utils.size() - 1);
         System.out.println("MinUtil:" + minUtil);
 
 
