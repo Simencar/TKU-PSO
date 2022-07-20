@@ -37,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1000;
+    final int k = 50;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean runPrune = false;
 
@@ -122,7 +122,7 @@ public class TOPK_PSO {
 
         public void add(Particle p) {
             if (sol.size() == size) {
-                disUtil -= sol.pollFirst().fitness;
+                disUtil -= sol.pollFirst().fitness; //TODO: Something wrong, verify by summing list at end (chess, k=50, avgEST)
             }
             sol.add(p);
             disUtil += p.fitness;
@@ -165,10 +165,10 @@ public class TOPK_PSO {
             std = std / items.size();
             //only use avgEstimates if the standard deviation is small compared to the minUtil
             //avgEstimate = (double) std / minUtil < 0.0001;
-            avgEstimate = false;
+            avgEstimate = true;
             //initialize the population
             generatePop();
-            List<Double> probRange = new ArrayList<>(); //roulette probabilities for current discovered HUIs
+            List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
                 //update each particle in population
@@ -263,7 +263,7 @@ public class TOPK_PSO {
      * @param p The particle
      * @return orgBitSet: The transactions the itemset of the particle occur (TidSet)
      */
-    private BitSet pev_check(Particle p) { 
+    private BitSet pev_check(Particle p) {
         int item1 = p.X.nextSetBit(0);
         if (item1 == -1) {
             return null;
