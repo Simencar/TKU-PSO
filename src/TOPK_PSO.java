@@ -122,10 +122,9 @@ public class TOPK_PSO {
 
         public void add(Particle p) {
             if (sol.size() == size) {
-                disUtil -= sol.pollFirst().fitness; //TODO: Something wrong, verify by summing list at end (chess, k=50, avgEST)
+                sol.pollFirst(); //TODO: Something wrong, verify by summing list at end (chess, k=50, avgEST)
             }
             sol.add(p);
-            disUtil += p.fitness;
             newS = true;
         }
 
@@ -805,6 +804,7 @@ public class TOPK_PSO {
             sb.append("#UTIL: ");
             sb.append(p.fitness);
             sb.append(System.lineSeparator());
+            disUtil += p.fitness;
         }
         BufferedWriter w = new BufferedWriter(new FileWriter(resultPath));
         w.write(sb.toString());
