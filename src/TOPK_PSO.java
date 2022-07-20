@@ -142,7 +142,7 @@ public class TOPK_PSO {
      *
      * @throws IOException
      */
-    public void run() throws IOException {
+    public void run() throws IOException { //TODO: Reference the fittest non-included pattern, and add it when minsolFittness is reduced
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
         sols = new Solutions(k);
