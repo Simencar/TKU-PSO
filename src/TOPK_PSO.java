@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 10;
+    final int k = 5;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean runPrune = false;
     final boolean avgEstimate = false;
@@ -128,7 +128,7 @@ public class TOPK_PSO {
 
         public Solutions(int size) {
             this.size = size;
-        } //TODO: get size
+        } 
 
         public void add(Particle p) {
             if (sol.size() == size) {
@@ -411,7 +411,6 @@ public class TOPK_PSO {
                 diffList = bitDiff(gBest, p);
                 changeParticle(diffList, i);
 
-
                 if (explored.contains(p.X)) {
                     //the particle is already explored, change one random bit
                     int rand = (int) (items.size() * Math.random());
@@ -423,7 +422,9 @@ public class TOPK_PSO {
             if (!explored.contains(p.X)) {
                 //bitset before pev
                 BitSet copy1 = (BitSet) p.X.clone();
+
                 BitSet tidSet = pev_check(p);
+
 
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
