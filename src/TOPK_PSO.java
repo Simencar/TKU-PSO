@@ -687,6 +687,7 @@ public class TOPK_PSO {
         int[] itemset = new int[2];
         itemset[0] = itemAndUtil.get(0).item;
         itemset[1] = itemAndUtil.get(1).item;
+        //TODO: compute tidsets
 
         //2nd DB-Scan: prune
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
