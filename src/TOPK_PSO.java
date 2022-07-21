@@ -30,6 +30,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
     TreeSet<Item> ts = new TreeSet<>();
     private final Random random = new Random();
+    int p = 0;
 
 
 
@@ -42,9 +43,8 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 13;
+    final int k = 1;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
-    final boolean runPrune = false;
     final boolean avgEstimate = true;
 
 
@@ -168,14 +168,19 @@ public class TOPK_PSO {
         //TODO: select 1-itemsets as pBest and gBest and add to solutions/or not add
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
-        sols = new Solutions(k);
+
         init(); //reads input file and prunes DB
+        System.out.println(database.size());
+        optimizeTransactions(database, itemTWU);
+        System.out.println(database.size());
 
-
+        sols = new Solutions(k);
 
         System.out.println("TWU_SIZE: " + items.size());
         checkMemory();
+        System.out.println("mem: "+maxMemory);
         System.out.println("mtl: " +maxTransactionLength);
+        System.out.println("recCall: "+p);
 
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
@@ -256,7 +261,7 @@ public class TOPK_PSO {
             p.fitness = calcFitness(p, tidSet, -1);
             population[i] = p;
             pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
-            if (!explored.contains(p.X)) {
+            if (!explored.contains(p.X)) { //TODO: put in own method
                 //check if HUI/CHUI
                 if (p.fitness > minSolutionFitness || sols.getSize() < k) {
                     if (closed) {
@@ -377,14 +382,14 @@ public class TOPK_PSO {
         //calculate exact fitness
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
             int q = 0; //current index in transaction
-            int item = p.X.nextSetBit(0);
+            int item = p.X.nextSetBit(0); //current item we are looking for
             if (database.get(i).size() < min) {
-                shortestTransactionID = i;
+                shortestTransactionID = i; //store the shortest transaction of the itemset (for closure check)
             }
             while (item != -1) {
-                if (database.get(i).get(q).item == item) {
+                if (database.get(i).get(q).item == item) { //found item in transaction
                     fitness += database.get(i).get(q).utility;
-                    item = p.X.nextSetBit(item + 1);
+                    item = p.X.nextSetBit(item + 1); //select next item in the itemset
                 }
                 q++;
             }
@@ -584,7 +589,6 @@ public class TOPK_PSO {
     private void init() {
         Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
         List<Integer> transUtils = new ArrayList<>(); //holds TU-value for each transaction
-        List<List<Pair>> db = new ArrayList<>();
         Map<Integer, Integer> totalItemUtil = new HashMap<>(); //used to determine minUtil
 
         String currentLine;
@@ -614,16 +618,17 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        ArrayList<Pair> utils = new ArrayList<>();
+        ArrayList<Pair> utils = new ArrayList<>(); //contains utility of all 1-itemsets
         for(int item : totalItemUtil.keySet()) {
             utils.add(new Pair(item, totalItemUtil.get(item)));
         }
-        Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed());
-        minUtil = (k < utils.size()) ? utils.get(k).utility : 0; 
+        Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
+        minUtil = (k <= utils.size()) ? utils.get(k-1).utility : 0; //set min utility
         System.out.println("minUtil: "+minUtil);
 
 
         //2nd DB-Scan: prune
+        List<List<Pair>> db = new ArrayList<>();
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
             int tid = 0;
@@ -649,7 +654,12 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        ETP(db, transUtils, new ArrayList<>(utils.subList(0,k)), utils, 1);
+        if(k < utils.size()) { //reduce list size for faster sorting during pruning
+            ETP(db, transUtils, new ArrayList<>(utils.subList(0, k)), utils, 1);
+        }
+        else {
+            ETP(db, transUtils, utils, utils, 1);
+        }
     }
 
 
@@ -697,38 +707,38 @@ public class TOPK_PSO {
      */
     private void ETP(List<List<Pair>> db, List<Integer> transUtils, ArrayList<Pair> topK,
                      ArrayList<Pair> utils, int idx) {
+
         Map<Integer, Integer> itemTWU1 = new HashMap<>();
+        p++;
         boolean pruned = false;
         int fitness = 0;
         int[] itemset = null;
         if(idx < utils.size()) {
             itemset = new int[]{utils.get(0).item, utils.get(idx).item};
         }
-
         //calculate TWU of each item and calculate fitness of the generated 2-itemset
         for (int i = 0; i < db.size(); i++) {
             int transactionUtility = transUtils.get(i);
             int count = 0;
             int currFit = 0;
             for (int j = 0; j < db.get(i).size(); j++) {
+                //twu calc
                 int item = db.get(i).get(j).item;
                 Integer twu = itemTWU1.get(item);
                 twu = (twu == null) ? transactionUtility : twu + transactionUtility;
                 itemTWU1.put(item, twu);
 
-                //check for itemset
+                //itemset fitness calc
                 if(itemset != null && count < 2) {
                     if(itemset[0] == item || itemset[1] == item) {
                         count++;
                         currFit += db.get(i).get(j).utility;
-                        if(count == 2) {
-                            fitness += currFit;
-                        }
+                        fitness += (count == 2) ? currFit : 0;
                     }
                 }
             }
         }
-        //update the minUtil if the 2-itemsets' fitness is greater than minUtil, + update topK list
+        //raise the minUtil if the 2-itemsets' fitness is greater than minUtil
         topK = updateMinUtil(fitness, topK);
 
         //prune items with TWU < minUtil
@@ -750,7 +760,9 @@ public class TOPK_PSO {
         if (pruned) { //item was removed, repeat pruning
             ETP(db, transUtils, topK, utils,idx+1);
         } else { //pruning is finished, optimize DB
-            optimizeTransactions(db, itemTWU1);
+            //optimizeTransactions(db, itemTWU1);
+            database = db;
+            itemTWU = itemTWU1;
         }
     }
 
@@ -764,7 +776,7 @@ public class TOPK_PSO {
         if (fitness > minUtil) {
             utils.add(new Pair(0,fitness));
             Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed());
-            minUtil = utils.get(k).utility;
+            minUtil = (k <= utils.size()) ? utils.get(k-1).utility : 0;
             System.out.println("minUtil: "+minUtil);
         }
         return utils;
@@ -795,6 +807,7 @@ public class TOPK_PSO {
                     itemNamesRev.put(c, item); //save the old name so it can be retrieved later
                     Item itemClass = new Item(c); //this class stores different info for the item
                     items.add(itemClass);
+
                 }
                 int twu = itemTWU1.get(item); //get the twu of this item
                 item = itemNames.get(item); //get the new name of the item
@@ -807,9 +820,10 @@ public class TOPK_PSO {
             }
             Collections.sort(db.get(i)); //sort transaction according to item name
             maxTransactionLength = Math.max(maxTransactionLength, db.get(i).size()); //update max trans. length
-            database.add(db.get(i)); //store the transaction
+            database.set(transID, db.get(i)); //store the transaction
             transID++;
         }
+        database = database.subList(0, transID); //clear old transactions
     }
 
 
