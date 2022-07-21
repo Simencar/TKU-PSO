@@ -619,9 +619,9 @@ public class TOPK_PSO {
             utils.add(new Pair(item, totalItemUtil.get(item)));
         }
         Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed());
-        minUtil = (k < utils.size()) ? utils.get(k).utility : utils.get(utils.size() - 1).utility; //TODO FIX
+        minUtil = (k < utils.size()) ? utils.get(k).utility : 0; 
         System.out.println("minUtil: "+minUtil);
-        
+
 
         //2nd DB-Scan: prune
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
