@@ -42,7 +42,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 3;
+    final int k = 13;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean runPrune = false;
     final boolean avgEstimate = true;
@@ -681,16 +681,11 @@ public class TOPK_PSO {
             utils.add(new Pair(item, totalItemUtil.get(item)));
         }
         Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed());
-        minUtil = (k < utils.size()) ? utils.get(k).utility : utils.get(utils.size() - 1).utility;
+        minUtil = (k < utils.size()) ? utils.get(k).utility : utils.get(utils.size() - 1).utility; //TODO FIX
         System.out.println("minUtil: "+minUtil);
 
         //create the 2-itemsets
-        LinkedList<int[]> itemsets = new LinkedList<>();
-        int n = Math.min(20, utils.size()); //todo: how select optimum size, better diversity?
-        for(int i = 1; i < n; i++) {
-            int[] is = {utils.get(0).item, utils.get(i).item};
-            itemsets.add(is);
-        }
+        LinkedList<int[]> itemsets = createItemsets(utils);
 
 /*
         //utilities of all 1-itemsets
@@ -730,7 +725,22 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        ETP(db, transUtils, itemsets, new ArrayList<>(utils.subList(0,k)));
+        ETP(db, transUtils, new ArrayList<>(utils.subList(0,k)), utils, 1);
+    }
+
+    /**
+     * creates some itemsets of size 2 based on the fittest 1-itemsets
+     * @param utils
+     * @return A linkedlist with 20 2-itemsets
+     */
+    private LinkedList<int[]> createItemsets(ArrayList<Pair> utils) {
+        LinkedList<int[]> itemsets = new LinkedList<>();
+        int n = Math.min(20, utils.size()); //todo: how select optimum size, better diversity?
+        for(int i = 1; i < n; i++) {
+            int[] is = {utils.get(0).item, utils.get(i).item};
+            itemsets.add(is);
+        }
+        return itemsets;
     }
 
 
@@ -776,12 +786,17 @@ public class TOPK_PSO {
      * @param db         The database to prune
      * @param transUtils The current transaction utilities of the database
      */
-    private void ETP(List<List<Pair>> db, List<Integer> transUtils, LinkedList<int[]> itemsets, ArrayList<Pair> utils) {
-        int[] itemset = itemsets.poll();
+    private void ETP(List<List<Pair>> db, List<Integer> transUtils, ArrayList<Pair> topK,
+                     ArrayList<Pair> utils, int idx) {
         Map<Integer, Integer> itemTWU1 = new HashMap<>();
         boolean pruned = false;
         int fitness = 0;
-        //calculate TWU of each item
+        int[] itemset = null;
+        if(idx < utils.size()) {
+            itemset = new int[]{utils.get(0).item, utils.get(idx).item};
+        }
+
+        //calculate TWU of each item and calculate fitness of the generated 2-itemset
         for (int i = 0; i < db.size(); i++) {
             int transactionUtility = transUtils.get(i);
             int count = 0;
@@ -804,33 +819,46 @@ public class TOPK_PSO {
                 }
             }
         }
+        //update the minUtil if the 2-itemsets' fitness is greater than minUtil, + update topK list
+        topK = updateMinUtil(fitness, topK);
+
+        //prune items with TWU < minUtil
+        for (int i = 0; i < db.size(); i++) {
+            List<Pair> revisedTransaction = new ArrayList<>();
+            for (int j = 0; j < db.get(i).size(); j++) {
+                int item = db.get(i).get(j).item;
+                int twu = itemTWU1.get(item);
+                if (twu >= minUtil) { //item is 1-HTWUI
+                    revisedTransaction.add(db.get(i).get(j)); //add item to revised transaction
+                } else { // item is 1-LTWUI
+                    pruned = true;
+                    int TU = transUtils.get(i) - db.get(i).get(j).utility;
+                    transUtils.set(i, TU); //update transaction utility since item is removed
+                }
+            }
+            db.set(i, revisedTransaction);
+        }
+        if (pruned) { //item was removed, repeat pruning
+            ETP(db, transUtils, topK, utils,idx+1);
+        } else { //pruning is finished, optimize DB
+            optimizeTransactions(db, itemTWU1);
+        }
+    }
+
+    /**
+     *
+     * @param fitness
+     * @param utils
+     * @return
+     */
+    private ArrayList<Pair> updateMinUtil(int fitness, ArrayList<Pair> utils) {
         if (fitness > minUtil) {
             utils.add(new Pair(0,fitness));
             Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed());
             minUtil = utils.get(k).utility;
             System.out.println("minUtil: "+minUtil);
         }
-        //check if any item has TWU < minUtil
-        for (int i = 0; i < db.size(); i++) {
-            List<Pair> revisedTransaction = new ArrayList<>();
-            for (int j = 0; j < db.get(i).size(); j++) {
-                int item = db.get(i).get(j).item;
-                int twu = itemTWU1.get(item);
-                if (twu >= minUtil) {
-                    revisedTransaction.add(db.get(i).get(j)); //add item to revised transaction
-                } else { // item is 1-LTWUI
-                    pruned = true;
-                    int TU = transUtils.get(i) - db.get(i).get(j).utility;
-                    transUtils.set(i, TU); //update transaction utility
-                }
-            }
-            db.set(i, revisedTransaction);
-        }
-        if (pruned) { //item was removed, repeat pruning
-            ETP(db, transUtils, itemsets, utils);
-        } else { //pruning is finished, optimize DB
-            optimizeTransactions(db, itemTWU1);
-        }
+        return utils;
     }
 
     /**
