@@ -580,68 +580,6 @@ public class TOPK_PSO {
         return rouletteProbs;
     }
 
-    private void init2() {
-        Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
-        List<Integer> transUtils = new ArrayList<>(); //holds TU-value for each transaction
-        List<List<Pair>> db = new ArrayList<>();
-        List<List<Pair>> tempDb = new ArrayList<>();
-
-        Map<Integer, Integer> itemUtil = new HashMap<>();
-
-        String currentLine;
-        try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(dataPath)))) {
-            //1st DB-Scan: calculate TWU value for each item
-            while ((currentLine = data.readLine()) != null) {
-                String[] split = currentLine.split(":");
-                String[] items = split[0].split(" ");
-                String[] utilities = split[2].split(" ");
-                int transactionUtility = Integer.parseInt(split[1]);
-                totalUtil += transactionUtility;
-                transUtils.add(transactionUtility);
-                List<Pair> transaction = new ArrayList<>();
-                for (int i = 0; i < items.length; i++) {
-                    int item = Integer.parseInt(items[i]);
-                    int util = Integer.parseInt(utilities[i]);
-                    Pair pair = new Pair(item, util);
-                    transaction.add(pair);
-                    Integer twu = itemTWU1.get(item);
-                    twu = (twu == null) ? transactionUtility : twu + transactionUtility;
-                    itemTWU1.put(item, twu);
-                    //calculate utility of size 1 itemsets
-                    Integer currUtil = itemUtil.get(item);
-                    currUtil = (currUtil == null) ? util : util + currUtil;
-                    itemUtil.put(item, currUtil);
-                }
-                tempDb.add(transaction);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        ArrayList<Integer> utils = new ArrayList<>(itemUtil.values());
-        Collections.sort(utils, Collections.reverseOrder());
-        int minUtil = utils.get(k);
-        System.out.println("MinUtil:" + minUtil);
-
-
-        //2nd DB-scan: remove items with TWU < minUtil
-        for (int i = 0; i < tempDb.size(); i++) {
-            List<Pair> revisedTransaction = new ArrayList<>();
-            for (int j = 0; j < tempDb.get(i).size(); j++) {
-                Pair pair = tempDb.get(i).get(j);
-                if (itemTWU1.get(pair.item) >= minUtil) {
-                    revisedTransaction.add(pair);
-                } else {
-                    int TU = transUtils.get(i) - pair.utility;
-                    transUtils.set(i, TU); //update transaction utility since item is removed
-                }
-            }
-            db.add(revisedTransaction); //store revised transaction
-        }
-       // ETP(db, transUtils);
-
-    }
 
     private void init() {
         Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
@@ -683,21 +621,7 @@ public class TOPK_PSO {
         Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed());
         minUtil = (k < utils.size()) ? utils.get(k).utility : utils.get(utils.size() - 1).utility; //TODO FIX
         System.out.println("minUtil: "+minUtil);
-
-        //create the 2-itemsets
-        LinkedList<int[]> itemsets = createItemsets(utils);
-
-/*
-        //utilities of all 1-itemsets
-        ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values()); //TODO: Better way??
-        Collections.sort(utils, Collections.reverseOrder());
-        minUtil = (k < utils.size()) ? utils.get(k) : utils.get(utils.size() - 1);
-        System.out.println(minUtil);
-
- */
-
-
-
+        
 
         //2nd DB-Scan: prune
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
@@ -726,21 +650,6 @@ public class TOPK_PSO {
         }
 
         ETP(db, transUtils, new ArrayList<>(utils.subList(0,k)), utils, 1);
-    }
-
-    /**
-     * creates some itemsets of size 2 based on the fittest 1-itemsets
-     * @param utils
-     * @return A linkedlist with 20 2-itemsets
-     */
-    private LinkedList<int[]> createItemsets(ArrayList<Pair> utils) {
-        LinkedList<int[]> itemsets = new LinkedList<>();
-        int n = Math.min(20, utils.size()); //todo: how select optimum size, better diversity?
-        for(int i = 1; i < n; i++) {
-            int[] is = {utils.get(0).item, utils.get(i).item};
-            itemsets.add(is);
-        }
-        return itemsets;
     }
 
 
