@@ -651,7 +651,7 @@ public class TOPK_PSO {
         }
 
         if(k < utils.size()) { //reduce list size for faster sorting during pruning
-            ETP(db, transUtils, new ArrayList<>(utils.subList(0, k)), utils, 1);
+            ETP(db, transUtils, new ArrayList<>(utils.subList(0, k-1)), utils, 1);
         }
         else {
             ETP(db, transUtils, utils, utils, 1);
@@ -700,6 +700,9 @@ public class TOPK_PSO {
      *
      * @param db         The database to prune
      * @param transUtils The current transaction utilities of the database
+     * @Param topK       The topK 1-itemsets with their utility
+     * @Param utils      All 1-itemsets with their utility
+     * @Param idx        Counter for generating 2-itemsets
      */
     private void ETP(List<List<Pair>> db, List<Integer> transUtils, ArrayList<Pair> topK,
                      ArrayList<Pair> utils, int idx) {
@@ -712,7 +715,7 @@ public class TOPK_PSO {
         if(idx < utils.size()) {
             itemset = new int[]{utils.get(0).item, utils.get(idx).item};
         }
-        //calculate TWU of each item and calculate fitness of the generated 2-itemset
+        //calculate TWU of each item and the utility of the generated 2-itemset
         for (int i = 0; i < db.size(); i++) {
             int transactionUtility = transUtils.get(i);
             int count = 0;
