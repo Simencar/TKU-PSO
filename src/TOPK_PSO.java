@@ -42,7 +42,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 13;
+    final int k = 3;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean runPrune = false;
     final boolean avgEstimate = true;
@@ -686,7 +686,7 @@ public class TOPK_PSO {
 
         //create the 2-itemsets
         LinkedList<int[]> itemsets = new LinkedList<>();
-        int n = Math.min(10, utils.size());
+        int n = Math.min(20, utils.size()); //todo: how select optimum size, better diversity?
         for(int i = 1; i < n; i++) {
             int[] is = {utils.get(0).item, utils.get(i).item};
             itemsets.add(is);
