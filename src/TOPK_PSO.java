@@ -61,6 +61,10 @@ public class TOPK_PSO {
             this.utility = utility;
         }
 
+        public int getUtility() {
+            return utility;
+        }
+
         @Override
         public int compareTo(Pair o) {
             return (this.item < o.item) ? -1 : 1;
@@ -128,7 +132,7 @@ public class TOPK_PSO {
 
         public Solutions(int size) {
             this.size = size;
-        } 
+        }
 
         public void add(Particle p) {
             if (sol.size() == size) {
@@ -166,6 +170,7 @@ public class TOPK_PSO {
 
         System.out.println("TWU_SIZE: " + items.size());
         checkMemory();
+        System.out.println("mtl: " +maxTransactionLength);
 
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
@@ -467,6 +472,7 @@ public class TOPK_PSO {
      * @param pos      position of current particle in population
      */
     private void changeParticle(List<Integer> diffList, int pos) { //TODO: check item TWU
+        //TODO: only include more items if size less than max transaction size
         //number of items so change
         int num = (int) (diffList.size() * Math.random() + 1);
         if (diffList.size() > 0) {
@@ -664,11 +670,23 @@ public class TOPK_PSO {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        ArrayList<Pair> itemAndUtil = new ArrayList<>();
+        for(int item: totalItemUtil.keySet()) {
+            itemAndUtil.add(new Pair(item, totalItemUtil.get(item)));
+        }
+        Collections.sort(itemAndUtil, Comparator.comparingInt(Pair::getUtility).reversed());
 
-        ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values()); //TODO: Better way??
-        Collections.sort(utils, Collections.reverseOrder());
-        minUtil = (k < utils.size()) ? utils.get(k) : utils.get(utils.size() - 1);
+
+       // ArrayList<Integer> utils = new ArrayList<>(totalItemUtil.values()); //TODO: Better way??
+        //Collections.sort(utils, Collections.reverseOrder());
+        //minUtil = (k < utils.size()) ? utils.get(k) : utils.get(utils.size() - 1);
+
+        minUtil = (k < itemAndUtil.size()) ? itemAndUtil.get(k).utility : itemAndUtil.get(itemAndUtil.size() - 1).utility;
         System.out.println("MinUtil:" + minUtil);
+
+        int[] itemset = new int[2];
+        itemset[0] = itemAndUtil.get(0).item;
+        itemset[1] = itemAndUtil.get(1).item;
 
         //2nd DB-Scan: prune
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
