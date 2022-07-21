@@ -755,8 +755,7 @@ public class TOPK_PSO {
         }
         if (pruned) { //item was removed, repeat pruning
             ETP(db, transUtils, topK, utils,idx+1);
-        } else { //pruning is finished, optimize DB
-            //optimizeTransactions(db, itemTWU1);
+        } else { //pruning is finished
             database = db;
             itemTWU = itemTWU1;
         }
