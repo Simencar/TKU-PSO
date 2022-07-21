@@ -31,7 +31,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "kosarak";
+    final String dataset = "mushroom";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -39,7 +39,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1;
+    final int k = 1000;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -650,11 +650,16 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        if(k < utils.size()) { //reduce list size for faster sorting during pruning
-            ETP(db, transUtils, new ArrayList<>(utils.subList(0, k-1)), utils, 1);
+        if(minUtil > 0) { 
+            if (k < utils.size()) { //reduce list size for faster sorting during pruning
+                ETP(db, transUtils, new ArrayList<>(utils.subList(0, k - 1)), utils, 1);
+            } else {
+                ETP(db, transUtils, utils, utils, 1);
+            }
         }
         else {
-            ETP(db, transUtils, utils, utils, 1);
+            database = db;
+            itemTWU = itemTWU1;
         }
     }
 
@@ -696,6 +701,7 @@ public class TOPK_PSO {
     }
 
     /**
+     * Extended TWU Pruning.
      * Recursively calculates item-TWUs, removes 1-LTWUI and updates TUs, until no items are removed.
      *
      * @param db         The database to prune
