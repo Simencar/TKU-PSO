@@ -25,10 +25,12 @@ public class TOPK_PSO {
     int minUtil;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
+    TreeSet<Item> ts = new TreeSet<>();
+    private final Random random = new Random();
 
 
     //file paths
-    final String dataset = "chess";
+    final String dataset = "kosarak";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -36,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500;
+    final int k = 10;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean runPrune = false;
     final boolean avgEstimate = false;
@@ -65,7 +67,7 @@ public class TOPK_PSO {
         }
     }
 
-    private static class Item {
+    private static class Item implements Comparable<Item> {
         int item; //item-name
         BitSet TIDS; //TID set
         int totalUtil = 0; //utility of the item
@@ -80,6 +82,14 @@ public class TOPK_PSO {
         @Override
         public String toString() {
             return String.valueOf(item);
+        }
+
+
+        public int compareTo(Item o) {
+            if (this.totalUtil == o.totalUtil) {
+                return 0;
+            }
+            return (this.totalUtil < o.totalUtil) ? -1 : 1;
         }
     }
 
@@ -135,6 +145,10 @@ public class TOPK_PSO {
         public int getMin() {
             return sol.first().fitness;
         }
+
+        public int getSize() {
+            return sol.size();
+        }
     }
 
     /**
@@ -142,7 +156,8 @@ public class TOPK_PSO {
      *
      * @throws IOException
      */
-    public void run() throws IOException { //TODO: Reference the fittest non-included pattern, and add it when minsolFittness is reduced
+    public void run() throws IOException {
+        //TODO: select 1-itemsets as pBest and gBest and add to solutions/or not add
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
         sols = new Solutions(k);
@@ -158,6 +173,9 @@ public class TOPK_PSO {
         for (Item item : items) {
             item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality());
             std += item.maxUtil - item.avgUtil;
+            if (item.totalUtil >= minUtil) {
+                ts.add(item);
+            }
         }
 
         if (!items.isEmpty()) {
@@ -165,7 +183,7 @@ public class TOPK_PSO {
             //only use avgEstimates if the standard deviation is small compared to the minUtil
             //avgEstimate = (double) std / minUtil < 0.0001;
             //initialize the population
-            generatePop();
+            generatePop(false);
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
@@ -183,13 +201,16 @@ public class TOPK_PSO {
 
                 if (newS) {
                     System.out.println("iteration: " + i);
+
                 }
 
 
                 if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
                     //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
                     std = ((double) lowEst / highEst < 0.01) ? 1 : std;
+                    System.out.println(i);
                 }
+
 
             }
         }
@@ -202,7 +223,7 @@ public class TOPK_PSO {
     }
 
 
-    private void generatePop() { //TODO: can be more effective when creating already explored particles.
+    private void generatePop(boolean post) { //TODO: can be more effective when creating already explored particles.
         List<Double> rouletteProbabilities = rouletteProbabilities();
         population = new Particle[pop_size];
         pBest = new Particle[pop_size];
@@ -227,7 +248,7 @@ public class TOPK_PSO {
             pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
             if (!explored.contains(p.X)) {
                 //check if HUI/CHUI
-                if (p.fitness > minSolutionFitness || sols.getSol().size() < k) {
+                if (p.fitness > minSolutionFitness || sols.getSize() < k) {
                     if (closed) {
                         //check if particle is closed
                         if (isClosed(p, shortestTransactionID, tidSet)) {
@@ -243,12 +264,13 @@ public class TOPK_PSO {
                 }
             }
             if (i == 0) {
-                gBest = new Particle(p.X, p.fitness); //initialize gBest
+                gBest = new Particle(p.X, p.fitness);
             } else {
                 if (p.fitness > gBest.fitness) {
                     gBest = new Particle(p.X, p.fitness); //update gBest
                 }
             }
+
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
         }
@@ -336,7 +358,7 @@ public class TOPK_PSO {
         int est = p.estFitness * support;
         int buffer = avgEstimate ? (std * support) : 0;
         if (idx != -1) {
-            if (est + buffer < minSolutionFitness && est < pBest[idx].fitness && sols.getSol().size() == k) {  //TODO: TEST IF NECESSARY
+            if (est + buffer < minSolutionFitness && est < pBest[idx].fitness && sols.getSize() == k) {  //TODO: TEST IF NECESSARY
                 // Skip fitness calculation
                 return 0;
             }
@@ -371,25 +393,32 @@ public class TOPK_PSO {
     /**
      * Updates population and checks for new CHUIs
      */
-    private void update() { //TODO: prune check TWU for new items
+    private void update() {
         for (int i = 0; i < pop_size; i++) {
-            Particle p = population[i];
-            //different bits between pBest and current particle
-            List<Integer> diffList = bitDiff(pBest[i], p);
-            //change a random amount of these bits
-            changeParticle(diffList, i);
-            //repeat for gBest
-            diffList = bitDiff(gBest, p);
-            changeParticle(diffList, i);
+            Particle p;
+
+            if (random.nextBoolean() && !ts.isEmpty()) { //TODO: test acc impact
+                p = new Particle(items.size());
+                Item item = ts.pollLast();
+                p.X.set(item.item);
+            } else {
+                p = population[i];
+                //different bits between pBest and current particle
+                List<Integer> diffList = bitDiff(pBest[i], p);
+                //change a random amount of these bits
+                changeParticle(diffList, i);
+                //repeat for gBest
+                diffList = bitDiff(gBest, p);
+                changeParticle(diffList, i);
 
 
-            if (explored.contains(p.X)) {
-                //the particle is already explored, change one random bit
-                int rand = (int) (items.size() * Math.random());
-                int change = items.get(rand).item;
-                p.X.flip(change);
+                if (explored.contains(p.X)) {
+                    //the particle is already explored, change one random bit
+                    int rand = (int) (items.size() * Math.random());
+                    int change = items.get(rand).item;
+                    p.X.flip(change);
+                }
             }
-
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
                 //bitset before pev
@@ -406,7 +435,7 @@ public class TOPK_PSO {
                             gBest = new Particle(p.X, p.fitness);
                         }
                     }
-                    if (p.fitness >= minSolutionFitness || sols.getSol().size() < k) {
+                    if (p.fitness > minSolutionFitness || sols.getSol().size() < k) {
                         if (closed) {
                             if (isClosed(p, shortestTransactionID, tidSet)) {
                                 //Particle is CHUI
@@ -436,7 +465,7 @@ public class TOPK_PSO {
      * @param diffList bit differences between particle and pBest/gBest
      * @param pos      position of current particle in population
      */
-    private void changeParticle(List<Integer> diffList, int pos) {
+    private void changeParticle(List<Integer> diffList, int pos) { //TODO: check item TWU
         //number of items so change
         int num = (int) (diffList.size() * Math.random() + 1);
         if (diffList.size() > 0) {
@@ -640,10 +669,9 @@ public class TOPK_PSO {
         minUtil = (k < utils.size()) ? utils.get(k) : utils.get(utils.size() - 1);
         System.out.println("MinUtil:" + minUtil);
 
-
+        //2nd DB-Scan: prune
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
-            //2nd DB-Scan: prune
             int tid = 0;
             while ((currentLine = data.readLine()) != null) {
                 String[] split = currentLine.split(":");
@@ -659,7 +687,6 @@ public class TOPK_PSO {
                         int TU = transUtils.get(tid) - util;
                         transUtils.set(tid, TU);
                     }
-
                 }
                 db.add(transaction);
                 tid++;
@@ -746,7 +773,6 @@ public class TOPK_PSO {
             ETP(db, transUtils);
         } else { //pruning is finished, optimize DB
             optimizeTransactions(db, itemTWU1);
-
         }
     }
 
@@ -780,7 +806,7 @@ public class TOPK_PSO {
                 item = itemNames.get(item); //get the new name of the item
                 db.get(i).get(j).item = item; //change the name of the item
                 Item it = items.get(item - 1);
-                it.TIDS.set(transID); //update the transaction bit for the item
+                it.TIDS.set(transID); //update the items' TidSet
                 itemTWU.put(item, twu); //store twu value
                 it.totalUtil += utility; //update total utility of this item
                 it.maxUtil = (it.maxUtil == 0) ? utility : Math.max(it.maxUtil, utility); //update max utility
