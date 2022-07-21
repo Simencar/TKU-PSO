@@ -1,8 +1,4 @@
-
-import com.sun.source.tree.Tree;
-
 import java.io.*;
-import java.lang.reflect.Array;
 import java.util.*;
 
 public class TOPK_PSO {
@@ -170,9 +166,9 @@ public class TOPK_PSO {
         startTimestamp = System.currentTimeMillis();
 
         init(); //reads input file and prunes DB
-        System.out.println(database.size());
-        optimizeTransactions(database, itemTWU);
-        System.out.println(database.size());
+
+        optimizeDatabase(database, itemTWU);
+
 
         sols = new Solutions(k);
 
@@ -693,7 +689,7 @@ public class TOPK_PSO {
                 db.set(i, revisedTransaction);
             }
             if (!pruned) {
-                optimizeTransactions(db, itemTWU1);
+                optimizeDatabase(db, itemTWU1);
                 break;
             }
         }
@@ -783,13 +779,13 @@ public class TOPK_PSO {
     }
 
     /**
-     * Sets item-names in the range 1 - #1-HTWUI, removes empty transactions,
-     * and initializes values required for the fitness- calculation and estimate approach
-     * The revised db is stored in 'database'
+     * Conducts various optimizations on the DB for faster runtimes and reduced memory usage.
+     * The function also initializes various variables needed for the fitness estimation approach.
      *
      * @param db The database to optimize
+     * @Param itemTWU1 The TWU of each item
      */
-    private void optimizeTransactions(List<List<Pair>> db, Map<Integer, Integer> itemTWU1) {
+    private void optimizeDatabase(List<List<Pair>> db, Map<Integer, Integer> itemTWU1) {
         HashMap<Integer, Integer> itemNames = new HashMap<>();
         int c = 0; //new item name
         int transID = 0; //current TID
