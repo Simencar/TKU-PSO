@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 15;
+    final int k = 10;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -280,11 +280,11 @@ public class TOPK_PSO {
                     gBest = new Particle(p.X, p.fitness); //update gBest
                 }
             }
-
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
         }
     }
+
 
     /**
      * The pev-check verifies that the particle exists in the database and modifies it if not.
@@ -750,8 +750,9 @@ public class TOPK_PSO {
                     revisedTransaction.add(db.get(i).get(j)); //add item to revised transaction
                 } else { // item is 1-LTWUI
                     pruned = true;
+                    //update transaction utility
                     int TU = transUtils.get(i) - db.get(i).get(j).utility;
-                    transUtils.set(i, TU); //update transaction utility since item is removed
+                    transUtils.set(i, TU);
                 }
             }
             db.set(i, revisedTransaction);
