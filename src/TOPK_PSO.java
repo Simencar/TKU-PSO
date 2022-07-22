@@ -30,7 +30,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "kosarak";
+    final String dataset = "foodmart";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 10;
+    final int k = 1;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -406,8 +406,7 @@ public class TOPK_PSO {
     private void update() {
         for (int i = 0; i < pop_size; i++) {
             Particle p;
-
-            if (random.nextBoolean() && !ts.isEmpty()) { //TODO: test acc impact
+            if (random.nextBoolean() && !ts.isEmpty()) { //TODO: test acc impact, foodmart...
                 p = new Particle(items.size());
                 Item item = ts.pollLast();
                 p.X.set(item.item);
@@ -738,7 +737,7 @@ public class TOPK_PSO {
         }
         //raise the minUtil if the 2-itemsets' fitness is greater than minUtil
         topK = updateMinUtil(fitness, topK);
-        
+
         //prune items with TWU < minUtil
         for (int i = 0; i < db.size(); i++) {
             List<Pair> revisedTransaction = new ArrayList<>();
