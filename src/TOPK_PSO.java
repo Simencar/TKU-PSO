@@ -649,13 +649,9 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        if (minUtil > 0) { //prune further
-            if (k < utils.size()) { //reduce list size for faster sorting during pruning
-                ETP(db, transUtils, new ArrayList<>(utils.subList(0, k - 1)), utils, 1);
-            } else {
-                ETP(db, transUtils, utils, utils, 1);
-            }
-        } else { //pruning finished
+        if (k < utils.size()) { //prune further
+            ETP(db, transUtils, new ArrayList<>(utils.subList(0, k)), utils, 1);
+        } else { //cant prune
             database = db;
             itemTWU = itemTWU1;
         }
@@ -708,9 +704,8 @@ public class TOPK_PSO {
      * @Param utils      All 1-itemsets with their utility
      * @Param idx        Counter for generating 2-itemsets
      */
-    private void ETP(List<List<Pair>> db, List<Integer> transUtils, ArrayList<Pair> topK,
-                     ArrayList<Pair> utils, int idx) {
-
+    private void ETP(List<List<Pair>> db, List<Integer> transUtils, List<Pair> topK,
+                     List<Pair> utils, int idx) {
         Map<Integer, Integer> itemTWU1 = new HashMap<>();
         p++;
         boolean pruned = false;
@@ -721,14 +716,14 @@ public class TOPK_PSO {
         }
         //calculate TWU of each item and the utility of the generated 2-itemset
         for (int i = 0; i < db.size(); i++) {
-            int transactionUtility = transUtils.get(i);
+            int TU = transUtils.get(i);
             int count = 0;
             int currFit = 0;
             for (int j = 0; j < db.get(i).size(); j++) {
                 //twu calc
                 int item = db.get(i).get(j).item;
                 Integer twu = itemTWU1.get(item);
-                twu = (twu == null) ? transactionUtility : twu + transactionUtility;
+                twu = (twu == null) ? TU : twu + TU;
                 itemTWU1.put(item, twu);
 
                 //itemset fitness calc
@@ -743,7 +738,7 @@ public class TOPK_PSO {
         }
         //raise the minUtil if the 2-itemsets' fitness is greater than minUtil
         topK = updateMinUtil(fitness, topK);
-
+        
         //prune items with TWU < minUtil
         for (int i = 0; i < db.size(); i++) {
             List<Pair> revisedTransaction = new ArrayList<>();
@@ -769,18 +764,21 @@ public class TOPK_PSO {
     }
 
     /**
-     * @param fitness
-     * @param utils
+     * Updates minUtil if utility of 2-itemset is a current topK HUI. Only used during pruning to raise the minUtil
+     *
+     * @param fitness utility of the 2-itemset
+     * @param topK    The current topK HUIs
      * @return
      */
-    private ArrayList<Pair> updateMinUtil(int fitness, ArrayList<Pair> utils) {
+    private List<Pair> updateMinUtil(int fitness, List<Pair> topK) {
         if (fitness > minUtil) {
-            utils.add(new Pair(0, fitness));
-            Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed());
-            minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0;
+            topK.add(new Pair(0, fitness));
+            Collections.sort(topK, Comparator.comparingInt(Pair::getUtility).reversed());
+            minUtil = (k <= topK.size()) ? topK.get(k - 1).utility : 0;
             System.out.println("minUtil: " + minUtil);
+            return topK.subList(0, k);
         }
-        return utils;
+        return topK;
     }
 
     /**
@@ -793,13 +791,13 @@ public class TOPK_PSO {
         int c = 0; //new item name
         int transID = 0; //current TID
         for (int i = 0; i < database.size(); i++) {
-            List<Pair> trans = database.get(i); //current transaction
-            if (trans.isEmpty()) {
+            List<Pair> transaction = database.get(i);
+            if (transaction.isEmpty()) {
                 continue;
             }
-            for (int j = 0; j < trans.size(); j++) {
-                int item = trans.get(j).item;
-                int utility = trans.get(j).utility;
+            for (int j = 0; j < transaction.size(); j++) {
+                int item = transaction.get(j).item;
+                int utility = transaction.get(j).utility;
                 //give item new name between 1 and |1-HTWUI|
                 if (!itemNames.containsKey(item)) {
                     //item has not been given new name yet
@@ -811,16 +809,16 @@ public class TOPK_PSO {
                 }
                 int twu = itemTWU.get(item); //get the twu of this item
                 item = itemNames.get(item); //get the new name of the item
-                trans.get(j).item = item; //change the name of the item in the transaction
+                transaction.get(j).item = item; //change the name of the item in the transaction
                 itemTWU1.put(item, twu); //store twu value with new name
                 Item it = items.get(item - 1);
                 it.TIDS.set(transID); //update the items' TidSet
                 it.totalUtil += utility; //update total utility of this item
                 it.maxUtil = (it.maxUtil == 0) ? utility : Math.max(it.maxUtil, utility); //update max utility
             }
-            Collections.sort(trans); //sort transaction according to item name
-            database.set(transID, trans); //save the new revised transaction
-            maxTransactionLength = Math.max(maxTransactionLength, trans.size()); //update max trans. length
+            Collections.sort(transaction); //sort transaction according to item name
+            database.set(transID, transaction); //save the new revised transaction
+            maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update max trans. length
             transID++;
         }
         database = database.subList(0, transID); //clear old transactions
