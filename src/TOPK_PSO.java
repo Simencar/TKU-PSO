@@ -785,7 +785,7 @@ public class TOPK_PSO {
 
     /**
      * Conducts various optimizations on the DB for faster runtimes and reduced memory usage.
-     * The function also initializes various variables needed for the fitness estimation approach.
+     * The function also initializes variables needed for the fitness estimation approach.
      */
     private void optimizeDatabase() {
         HashMap<Integer, Integer> itemNames = new HashMap<>();
@@ -800,6 +800,7 @@ public class TOPK_PSO {
             for (int j = 0; j < trans.size(); j++) {
                 int item = trans.get(j).item;
                 int utility = trans.get(j).utility;
+                //give item new name between 1 and |1-HTWUI|
                 if (!itemNames.containsKey(item)) {
                     //item has not been given new name yet
                     c++; //increment name
@@ -810,15 +811,15 @@ public class TOPK_PSO {
                 }
                 int twu = itemTWU.get(item); //get the twu of this item
                 item = itemNames.get(item); //get the new name of the item
-                trans.get(j).item = item; //change the name of the item
+                trans.get(j).item = item; //change the name of the item in the transaction
+                itemTWU1.put(item, twu); //store twu value with new name
                 Item it = items.get(item - 1);
                 it.TIDS.set(transID); //update the items' TidSet
-                itemTWU1.put(item, twu); //store twu value
                 it.totalUtil += utility; //update total utility of this item
                 it.maxUtil = (it.maxUtil == 0) ? utility : Math.max(it.maxUtil, utility); //update max utility
             }
             Collections.sort(trans); //sort transaction according to item name
-            database.set(transID, trans);
+            database.set(transID, trans); //save the new revised transaction
             maxTransactionLength = Math.max(maxTransactionLength, trans.size()); //update max trans. length
             transID++;
         }
