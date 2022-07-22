@@ -30,7 +30,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "foodmart";
+    final String dataset = "kosarak";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1;
+    final int k = 15;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -710,7 +710,7 @@ public class TOPK_PSO {
         boolean pruned = false;
         int fitness = 0;
         int[] itemset = null;
-        if (idx < utils.size()) {
+        if (idx < utils.size()) { //TODO: goto item2
             itemset = new int[]{utils.get(0).item, utils.get(idx).item};
         }
         //calculate TWU of each item and the utility of the generated 2-itemset
