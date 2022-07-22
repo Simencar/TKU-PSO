@@ -583,7 +583,7 @@ public class TOPK_PSO {
     private void init() {
         Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
         List<Integer> transUtils = new ArrayList<>(); //holds TU for each transaction
-        Map<Integer, Integer> itemUtil = new HashMap<>(); //used to determine minUtil
+        Map<Integer, Integer> itemUtil = new HashMap<>(); //holds utility of each 1-itemset
 
         String currentLine;
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
@@ -612,7 +612,8 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        ArrayList<Pair> utils = new ArrayList<>(); //contains utility of all 1-itemsets
+        //Set minUtil to utility of kth largest 1-itemset
+        ArrayList<Pair> utils = new ArrayList<>();
         for (int item : itemUtil.keySet()) {
             utils.add(new Pair(item, itemUtil.get(item)));
         }
@@ -637,6 +638,7 @@ public class TOPK_PSO {
                     if (itemTWU1.get(item) >= minUtil) {
                         transaction.add(new Pair(item, util));
                     } else {
+                        //item is pruned, update transaction utility
                         int TU = transUtils.get(tid) - util;
                         transUtils.set(tid, TU);
                     }
@@ -648,7 +650,7 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        if (k < utils.size()) { //prune further
+        if (minUtil > 0) { //prune further
             ETP(db, transUtils, new ArrayList<>(utils.subList(0, k)), utils, 1);
         } else { //cant prune
             database = db;
