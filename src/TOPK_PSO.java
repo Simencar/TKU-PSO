@@ -30,7 +30,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "kosarak";
+    final String dataset = "pumsb";
     final String dataPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\" + dataset + ".txt"; //input file path
     final String resultPath = "C:\\Users\\homse\\OneDrive\\Desktop\\datasets\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 10;
+    final int k = 3;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -288,7 +288,7 @@ public class TOPK_PSO {
 
     /**
      * The pev-check verifies that the particle exists in the database and modifies it if not.
-     * Furthermore, it calculates the avg/max fitness estimate and returns the TidSet of the particle.
+     * it also calculates the avg/max fitness estimate and returns the TidSet of the particle.
      *
      * @param p The particle
      * @return orgBitSet: The transactions the itemset of the particle occur (TidSet)
@@ -431,10 +431,7 @@ public class TOPK_PSO {
             if (!explored.contains(p.X)) {
                 //bitset before pev
                 BitSet copy1 = (BitSet) p.X.clone();
-
                 BitSet tidSet = pev_check(p);
-
-
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
                     p.fitness = calcFitness(p, tidSet, i);
@@ -552,7 +549,7 @@ public class TOPK_PSO {
         return pos;
     }
 
-    private void selectGBest(int pos) {
+    private void selectGBest(int pos) { //TODO: find more efficient way
         int c = 0;
         for (Particle p : sols.getSol()) {
             if (c == pos) {
@@ -612,7 +609,7 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-        //Set minUtil to utility of kth largest 1-itemset
+        //Set minUtil to utility of kth fittest 1-itemset
         ArrayList<Pair> utils = new ArrayList<>();
         for (int item : itemUtil.keySet()) {
             utils.add(new Pair(item, itemUtil.get(item)));
