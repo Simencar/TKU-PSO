@@ -30,7 +30,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "kosarak";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 100;
+    final int k = 15;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -217,7 +217,6 @@ public class TOPK_PSO {
                 }
 
 
-
                 if (newS) {
                     System.out.println("iteration: " + i);
 
@@ -293,7 +292,6 @@ public class TOPK_PSO {
     }
 
     /**
-     *
      * @param idx
      */
     private void initBest(int idx) {
@@ -301,9 +299,9 @@ public class TOPK_PSO {
         Particle p = new Particle(items.size());
         p.X.set(item.item);
         p.fitness = item.totalUtil;
-        System.out.println("p "+p.fitness);
+        System.out.println("p " + p.fitness);
         pBest[idx] = p;
-        if(idx == 0) {
+        if (idx == 0) {
             gBest = new Particle(p.X, p.fitness);
         }
     }
@@ -314,10 +312,9 @@ public class TOPK_PSO {
         pBest = new Particle[pop_size];
         for (int i = 0; i < pop_size; i++) {
             Particle p = new Particle(items.size());
-            if(!ts.isEmpty()) {
+            if (!ts.isEmpty()) {
                 p.X.set(ts.pollLast().item);
-            }
-            else {
+            } else {
                 //k is the number of items to include in the particle
                 int k = (int) (Math.random() * maxTransactionLength) + 1;
                 //j is the current number of items that has been included
@@ -485,32 +482,22 @@ public class TOPK_PSO {
      */
     private void update() {
         for (int i = 0; i < pop_size; i++) {
-            Particle p;
-            if (random.nextBoolean()  && !ts.isEmpty()) { //TODO: test acc impact, foodmart...
-                p = new Particle(items.size());
-                Item item = ts.pollLast();
-                p.X.set(item.item);
-                if(item.totalUtil < minSolutionFitness) {
-                    ts.clear();
-                }
-            } else {
-                p = population[i];
-                //different bits between pBest and current particle
-                List<Integer> diffList = bitDiff(pBest[i], p);
-                //change a random amount of these bits
-                changeParticle(diffList, i);
-                //repeat for gBest
-                diffList = bitDiff(gBest, p);
-                changeParticle(diffList, i);
+            Particle p = population[i];
+            //different bits between pBest and current particle
+            List<Integer> diffList = bitDiff(pBest[i], p);
+            //change a random amount of these bits
+            changeParticle(diffList, i);
+            //repeat for gBest
+            diffList = bitDiff(gBest, p);
+            changeParticle(diffList, i);
 
-                if (explored.contains(p.X)) {
-                    //the particle is already explored, change one random bit
-                    int rand = (int) (items.size() * Math.random());
-                    int change = items.get(rand).item;
-                    p.X.flip(change);
-                }
+            if (explored.contains(p.X)) {
+                //the particle is already explored, change one random bit
+                int rand = (int) (items.size() * Math.random());
+                int change = items.get(rand).item;
+                p.X.flip(change);
             }
-            //System.out.println(p.X.cardinality());
+
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
                 //bitset before pev
