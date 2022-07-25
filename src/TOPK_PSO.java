@@ -24,8 +24,7 @@ public class TOPK_PSO {
     int minUtil;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
-    TreeSet<Item> ts = new TreeSet<>();
-    private final Random random = new Random();
+    TreeSet<Item> sizeOneItemsets = new TreeSet<>();
     int p = 0;
 
 
@@ -38,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 15;
+    final int k = 1;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -127,7 +126,7 @@ public class TOPK_PSO {
 
     public class Solutions {
         TreeSet<Particle> sol = new TreeSet<>();
-        int size;
+        final int size;
 
         public Solutions(int size) {
             this.size = size;
@@ -139,19 +138,15 @@ public class TOPK_PSO {
             }
             sol.add(p);
             newS = true;
+            if(sol.size() == size) {
+                minSolutionFitness = sol.first().fitness;
+            }
         }
 
         public TreeSet<Particle> getSol() {
             return sol;
         }
 
-        public int getMin() {
-            return sol.first().fitness;
-        }
-
-        public int getSize() {
-            return sol.size();
-        }
     }
 
     /**
@@ -183,14 +178,7 @@ public class TOPK_PSO {
         for (Item item : items) {
             item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality());
             std += item.maxUtil - item.avgUtil;
-/*
-            if(item.totalUtil >= minUtil) {
-                ts.add(item);
-            }
-
- */
-            ts.add(item);
-
+            sizeOneItemsets.add(item);
         }
 
         if (!items.isEmpty()) {
@@ -217,7 +205,6 @@ public class TOPK_PSO {
 
                 if (newS) {
                     System.out.println("iteration: " + i);
-
                 }
 
                 if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
@@ -242,8 +229,8 @@ public class TOPK_PSO {
         pBest = new Particle[pop_size];
         for (int i = 0; i < pop_size; i++) {
             Particle p = new Particle(items.size());
-            if (!ts.isEmpty()) {
-                p.X.set(ts.pollLast().item);
+            if (!sizeOneItemsets.isEmpty()) {
+                p.X.set(sizeOneItemsets.pollLast().item);
             } else {
                 //k is the number of items to include in the particle
                 int k = (int) (Math.random() * maxTransactionLength) + 1;
@@ -265,18 +252,16 @@ public class TOPK_PSO {
             pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
             if (!explored.contains(p.X)) {
                 //check if HUI/CHUI
-                if (p.fitness > minSolutionFitness || sols.getSize() < k) {
+                if (p.fitness > minSolutionFitness) {
                     if (closed) {
                         //check if particle is closed
                         if (isClosed(p, shortestTransactionID, tidSet)) {
                             Particle s = new Particle(p.X, p.fitness);
                             sols.add(s);
-                            minSolutionFitness = sols.getMin();
                         }
                     } else {
                         Particle s = new Particle(p.X, p.fitness);
                         sols.add(s);
-                        minSolutionFitness = sols.getMin();
                     }
                 }
             }
@@ -289,6 +274,7 @@ public class TOPK_PSO {
             }
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
+            sizeOneItemsets.clear();
         }
     }
 
@@ -375,7 +361,7 @@ public class TOPK_PSO {
         int est = p.estFitness * support;
         int buffer = avgEstimate ? (std * support) : 0;
         if (idx != -1) {
-            if (est + buffer < minSolutionFitness && est < pBest[idx].fitness && sols.getSize() == k) {  //TODO: TEST IF NECESSARY
+            if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
                 // Skip fitness calculation
                 return 0;
             }
@@ -449,13 +435,11 @@ public class TOPK_PSO {
                                 //Particle is CHUI
                                 Particle s = new Particle(p.X, p.fitness);
                                 sols.add(s);
-                                minSolutionFitness = sols.getMin();
                             }
                         } else {
                             // particle is HUI
                             Particle s = new Particle(p.X, p.fitness);
                             sols.add(s);
-                            minSolutionFitness = sols.getMin();
                         }
                     }
                     //bitset after pev
