@@ -30,7 +30,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "retail";
+    final String dataset = "chainstore";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 3;
+    final int k = 100;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -183,9 +183,14 @@ public class TOPK_PSO {
         for (Item item : items) {
             item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality());
             std += item.maxUtil - item.avgUtil;
-            if (item.totalUtil >= minUtil) {
+/*
+            if(item.totalUtil >= minUtil) {
                 ts.add(item);
             }
+
+ */
+            ts.add(item);
+
         }
 
         if (!items.isEmpty()) {
@@ -193,7 +198,8 @@ public class TOPK_PSO {
             //only use avgEstimates if the standard deviation is small compared to the minUtil
             //avgEstimate = (double) std / minUtil < 0.0001;
             //initialize the population
-            generatePop(false);
+            //generatePop(false);
+            genPop2();
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
@@ -201,6 +207,7 @@ public class TOPK_PSO {
                 update();
 
                 //gBest update RWS
+
                 if (minSolutionFitness >= minUtil) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
@@ -208,6 +215,8 @@ public class TOPK_PSO {
                     int pos = rouletteSelect(probRange);
                     selectGBest(pos);
                 }
+
+
 
                 if (newS) {
                     System.out.println("iteration: " + i);
@@ -220,8 +229,6 @@ public class TOPK_PSO {
                     std = ((double) lowEst / highEst < 0.01) ? 1 : std;
                     System.out.println(i);
                 }
-
-
             }
         }
         endTimestamp = System.currentTimeMillis();
@@ -250,6 +257,79 @@ public class TOPK_PSO {
                 if (!p.X.get(items.get(pos).item)) {
                     p.X.set(items.get(pos).item);
                     j++;
+                }
+            }
+            BitSet tidSet = pev_check(p); //transactions the particle occur
+            p.fitness = calcFitness(p, tidSet, -1);
+            population[i] = p;
+            pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
+            if (!explored.contains(p.X)) { //TODO: put in own method
+                //check if HUI/CHUI
+                if (p.fitness > minSolutionFitness || sols.getSize() < k) {
+                    if (closed) {
+                        //check if particle is closed
+                        if (isClosed(p, shortestTransactionID, tidSet)) {
+                            Particle s = new Particle(p.X, p.fitness);
+                            sols.add(s);
+                            minSolutionFitness = sols.getMin();
+                        }
+                    } else {
+                        Particle s = new Particle(p.X, p.fitness);
+                        sols.add(s);
+                        minSolutionFitness = sols.getMin();
+                    }
+                }
+            }
+            if (i == 0) {
+                gBest = new Particle(p.X, p.fitness);
+            } else {
+                if (p.fitness > gBest.fitness) {
+                    gBest = new Particle(p.X, p.fitness); //update gBest
+                }
+            }
+            BitSet clone = (BitSet) p.X.clone();
+            explored.add(clone); //set particle as explored
+        }
+    }
+
+    /**
+     *
+     * @param idx
+     */
+    private void initBest(int idx) {
+        Item item = ts.pollLast();
+        Particle p = new Particle(items.size());
+        p.X.set(item.item);
+        p.fitness = item.totalUtil;
+        System.out.println("p "+p.fitness);
+        pBest[idx] = p;
+        if(idx == 0) {
+            gBest = new Particle(p.X, p.fitness);
+        }
+    }
+
+    private void genPop2() {
+        List<Double> rouletteProbabilities = rouletteProbabilities();
+        population = new Particle[pop_size];
+        pBest = new Particle[pop_size];
+        for (int i = 0; i < pop_size; i++) {
+            Particle p = new Particle(items.size());
+            if(!ts.isEmpty()) {
+                p.X.set(ts.pollLast().item);
+            }
+            else {
+                //k is the number of items to include in the particle
+                int k = (int) (Math.random() * maxTransactionLength) + 1;
+                //j is the current number of items that has been included
+                int j = 0;
+                while (j < k) {
+                    //select the item
+                    int pos = rouletteSelect(rouletteProbabilities);
+                    //if item is not previously selected, select it and increment j.
+                    if (!p.X.get(items.get(pos).item)) {
+                        p.X.set(items.get(pos).item);
+                        j++;
+                    }
                 }
             }
             BitSet tidSet = pev_check(p); //transactions the particle occur
@@ -406,10 +486,13 @@ public class TOPK_PSO {
     private void update() {
         for (int i = 0; i < pop_size; i++) {
             Particle p;
-            if (random.nextBoolean() && !ts.isEmpty()) { //TODO: test acc impact, foodmart...
+            if (random.nextBoolean()  && !ts.isEmpty()) { //TODO: test acc impact, foodmart...
                 p = new Particle(items.size());
                 Item item = ts.pollLast();
                 p.X.set(item.item);
+                if(item.totalUtil < minSolutionFitness) {
+                    ts.clear();
+                }
             } else {
                 p = population[i];
                 //different bits between pBest and current particle
@@ -427,6 +510,7 @@ public class TOPK_PSO {
                     p.X.flip(change);
                 }
             }
+            //System.out.println(p.X.cardinality());
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
                 //bitset before pev
