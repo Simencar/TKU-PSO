@@ -198,8 +198,7 @@ public class TOPK_PSO {
             //only use avgEstimates if the standard deviation is small compared to the minUtil
             //avgEstimate = (double) std / minUtil < 0.0001;
             //initialize the population
-            //generatePop(false);
-            genPop2();
+            generatePop();
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
@@ -216,12 +215,10 @@ public class TOPK_PSO {
                     selectGBest(pos);
                 }
 
-
                 if (newS) {
                     System.out.println("iteration: " + i);
 
                 }
-
 
                 if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
                     //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
@@ -239,74 +236,7 @@ public class TOPK_PSO {
     }
 
 
-    private void generatePop(boolean post) { //TODO: can be more effective when creating already explored particles.
-        List<Double> rouletteProbabilities = rouletteProbabilities();
-        population = new Particle[pop_size];
-        pBest = new Particle[pop_size];
-        for (int i = 0; i < pop_size; i++) {
-            //k is the number of items to include in the particle
-            int k = (int) (Math.random() * maxTransactionLength) + 1;
-            //j is the current number of items that has been included
-            int j = 0;
-            Particle p = new Particle(items.size());
-            while (j < k) {
-                //select the item
-                int pos = rouletteSelect(rouletteProbabilities);
-                //if item is not previously selected, select it and increment j.
-                if (!p.X.get(items.get(pos).item)) {
-                    p.X.set(items.get(pos).item);
-                    j++;
-                }
-            }
-            BitSet tidSet = pev_check(p); //transactions the particle occur
-            p.fitness = calcFitness(p, tidSet, -1);
-            population[i] = p;
-            pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
-            if (!explored.contains(p.X)) { //TODO: put in own method
-                //check if HUI/CHUI
-                if (p.fitness > minSolutionFitness || sols.getSize() < k) {
-                    if (closed) {
-                        //check if particle is closed
-                        if (isClosed(p, shortestTransactionID, tidSet)) {
-                            Particle s = new Particle(p.X, p.fitness);
-                            sols.add(s);
-                            minSolutionFitness = sols.getMin();
-                        }
-                    } else {
-                        Particle s = new Particle(p.X, p.fitness);
-                        sols.add(s);
-                        minSolutionFitness = sols.getMin();
-                    }
-                }
-            }
-            if (i == 0) {
-                gBest = new Particle(p.X, p.fitness);
-            } else {
-                if (p.fitness > gBest.fitness) {
-                    gBest = new Particle(p.X, p.fitness); //update gBest
-                }
-            }
-            BitSet clone = (BitSet) p.X.clone();
-            explored.add(clone); //set particle as explored
-        }
-    }
-
-    /**
-     * @param idx
-     */
-    private void initBest(int idx) {
-        Item item = ts.pollLast();
-        Particle p = new Particle(items.size());
-        p.X.set(item.item);
-        p.fitness = item.totalUtil;
-        System.out.println("p " + p.fitness);
-        pBest[idx] = p;
-        if (idx == 0) {
-            gBest = new Particle(p.X, p.fitness);
-        }
-    }
-
-    private void genPop2() {
+    private void generatePop() {
         List<Double> rouletteProbabilities = rouletteProbabilities();
         population = new Particle[pop_size];
         pBest = new Particle[pop_size];
@@ -333,7 +263,7 @@ public class TOPK_PSO {
             p.fitness = calcFitness(p, tidSet, -1);
             population[i] = p;
             pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
-            if (!explored.contains(p.X)) { //TODO: put in own method
+            if (!explored.contains(p.X)) {
                 //check if HUI/CHUI
                 if (p.fitness > minSolutionFitness || sols.getSize() < k) {
                     if (closed) {
