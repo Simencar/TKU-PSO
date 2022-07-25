@@ -26,6 +26,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
     TreeSet<Item> sizeOneItemsets = new TreeSet<>();
     int p = 0;
+    long twuSum = 0;
 
 
     //file paths
@@ -37,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1;
+    final int k = 3;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -155,7 +156,6 @@ public class TOPK_PSO {
      * @throws IOException
      */
     public void run() throws IOException {
-        //TODO: select 1-itemsets as pBest and gBest and add to solutions/or not add
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
 
@@ -179,6 +179,7 @@ public class TOPK_PSO {
             item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality());
             std += item.maxUtil - item.avgUtil;
             sizeOneItemsets.add(item);
+            twuSum += itemTWU.get(item.item);
         }
 
         if (!items.isEmpty()) {
@@ -194,7 +195,6 @@ public class TOPK_PSO {
                 update();
 
                 //gBest update RWS
-
                 if (minSolutionFitness >= minUtil) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
@@ -224,7 +224,7 @@ public class TOPK_PSO {
 
 
     private void generatePop() {
-        List<Double> rouletteProbabilities = rouletteProbabilities();
+        List<Double> rouletteProbabilities = (sizeOneItemsets.size() < pop_size) ? rouletteProbabilities() : null;
         population = new Particle[pop_size];
         pBest = new Particle[pop_size];
         for (int i = 0; i < pop_size; i++) {
@@ -274,8 +274,8 @@ public class TOPK_PSO {
             }
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
-            sizeOneItemsets.clear();
         }
+        sizeOneItemsets.clear();
     }
 
 
@@ -363,6 +363,7 @@ public class TOPK_PSO {
         if (idx != -1) {
             if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
                 // Skip fitness calculation
+                count++;
                 return 0;
             }
         }
@@ -496,13 +497,7 @@ public class TOPK_PSO {
      */
     private List<Double> rouletteProbabilities() {
         List<Double> probRange = new ArrayList<>();
-        double twuSum = 0;
         double tempSum = 0;
-        //sum the twu values for all 1-HTWUIs
-        for (int i = 0; i < items.size(); i++) {
-            int item = items.get(i).item;
-            twuSum += itemTWU.get(item);
-        }
         //Set probabilities based on TWU-proportion
         for (int i = 0; i < items.size(); i++) {
             int item = items.get(i).item;
