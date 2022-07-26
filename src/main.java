@@ -6,8 +6,6 @@ public class main {
         TOPK_PSO alg = new TOPK_PSO();
         alg.run();
         alg.printStats();
-
-
     }
 
 

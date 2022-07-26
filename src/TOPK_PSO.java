@@ -163,7 +163,6 @@ public class TOPK_PSO {
 
         optimizeDatabase(); //various optimizations on transactions and items
 
-
         sols = new Solutions(k);
 
         System.out.println("TWU_SIZE: " + items.size());
@@ -171,7 +170,6 @@ public class TOPK_PSO {
         System.out.println("mem: " + maxMemory);
         System.out.println("mtl: " + maxTransactionLength);
         System.out.println("recCall: " + p);
-
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
         std = 0; // the standard deviation
@@ -224,7 +222,7 @@ public class TOPK_PSO {
 
 
     private void generatePop() {
-        List<Double> rouletteProbabilities = (sizeOneItemsets.size() < pop_size) ? rouletteProbabilities() : null;
+        List<Double> rouletteProbabilities = (items.size() < pop_size) ? rouletteProbabilities() : null;
         population = new Particle[pop_size];
         pBest = new Particle[pop_size];
         for (int i = 0; i < pop_size; i++) {
@@ -275,7 +273,7 @@ public class TOPK_PSO {
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
         }
-        sizeOneItemsets.clear();
+        sizeOneItemsets.clear(); //TODO: hmmm
     }
 
 
@@ -317,7 +315,7 @@ public class TOPK_PSO {
      * @param tidSet              the TIDSET of the particle
      * @return True if Closed, false otherwise
      */
-    private boolean isClosed(Particle p, int shortestTransaction, BitSet tidSet) {
+    private boolean isClosed(Particle p, int shortestTransaction, BitSet tidSet) { //TODO: rem
         int support = tidSet.cardinality();
         List<Pair> sTrans = database.get(shortestTransaction);
         //Loop all items in the shortest transaction
@@ -372,7 +370,7 @@ public class TOPK_PSO {
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
             int q = 0; //current index in transaction
             int item = p.X.nextSetBit(0); //current item we are looking for
-            if (database.get(i).size() < min) {
+            if (database.get(i).size() < min) { //TODO: rem
                 shortestTransactionID = i; //store the shortest transaction of the itemset (for closure check)
             }
             while (item != -1) {
@@ -598,8 +596,7 @@ public class TOPK_PSO {
         minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0; //set min utility
         System.out.println("minUtil: " + minUtil);
 
-
-        //2nd DB-Scan: prune
+        //2nd DB-Scan: prune and initialize db
         List<List<Pair>> db = new ArrayList<>();
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
@@ -689,7 +686,7 @@ public class TOPK_PSO {
         boolean pruned = false;
         int fitness = 0;
         int[] itemset = null;
-        if (idx < utils.size()) { //TODO: goto item2
+        if (idx < utils.size()) { //TODO: smarter selection, removed items are used
             itemset = new int[]{utils.get(0).item, utils.get(idx).item};
         }
         //calculate TWU of each item and the utility of the generated 2-itemset
