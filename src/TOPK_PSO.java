@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "accidents";
+    final String dataset = "pumsb";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -37,8 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 20;
-    final boolean closed = false; //true = find CHUIS, false = find HUIS
+    final int k = 100;
     final boolean avgEstimate = true;
 
 
@@ -178,7 +177,7 @@ public class TOPK_PSO {
             sizeOneItemsets.add(item);
             twuSum += itemTWU.get(item.item);
         }
-
+        boolean pruned = false;
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
             //only use avgEstimates if the standard deviation is small compared to the minUtil
@@ -200,13 +199,16 @@ public class TOPK_PSO {
                     selectGBest(pos);
                 }
 
+
                 if (newS) {
-                    //System.out.println("iteration: " + i);
+                    System.out.println("iteration: " + i + "     MinFit: "+minSolutionFitness);
                 }
 
-                if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
+                if (i % 50 == 0 && highEst > 0 && i > 0 && std != 1) { //check each 100th iteration
                     //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
                     std = ((double) lowEst / highEst < 0.01) ? 1 : std;
+                }
+                if (i % 1000 == 0) {
                     System.out.println(i);
                 }
             }
@@ -285,19 +287,13 @@ public class TOPK_PSO {
         BitSet copyBitSet = (BitSet) orgBitSet.clone();
         p.estFitness = avgEstimate ? HTWUI.get(item1 - 1).avgUtil : HTWUI.get(item1 - 1).maxUtil;
         for (int i = p.X.nextSetBit(item1 + 1); i != -1; i = p.X.nextSetBit(i + 1)) {
-            if (itemTWU.get(i) > minSolutionFitness) {
-                orgBitSet.and(HTWUI.get(i - 1).TIDS);
-                //the two items have common transactions
-                if (orgBitSet.cardinality() > 0) {
-                    copyBitSet = (BitSet) orgBitSet.clone();
-                    p.estFitness += avgEstimate ? (HTWUI.get(i - 1).avgUtil) : (HTWUI.get(i - 1).maxUtil);
-                } else {
-                    // no common transactions, remove the current item from the particle
-                    orgBitSet = (BitSet) copyBitSet.clone();
-                    p.X.clear(i);
-                }
+            orgBitSet.and(HTWUI.get(i - 1).TIDS);
+            //the two items have common transactions
+            if (orgBitSet.cardinality() > 0) {
+                copyBitSet = (BitSet) orgBitSet.clone();
+                p.estFitness += avgEstimate ? (HTWUI.get(i - 1).avgUtil) : (HTWUI.get(i - 1).maxUtil);
             } else {
-                //item TWU unpromising, remove item
+                // no common transactions, remove the current item from the particle
                 orgBitSet = (BitSet) copyBitSet.clone();
                 p.X.clear(i);
             }
@@ -315,7 +311,7 @@ public class TOPK_PSO {
      * @return The fitness of the particle
      */
     private int calcFitness(Particle p, BitSet tidSet, int idx) {
-        int fitness = 0;
+
         if (tidSet == null) {
             return 0; // particle does not occur in any transaction
         }
@@ -337,6 +333,7 @@ public class TOPK_PSO {
         }
 
         //calculate exact fitness
+        int fitness = 0;
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
             int q = 0; //current index in transaction
             int item = p.X.nextSetBit(0); //current item we are looking for
@@ -373,6 +370,7 @@ public class TOPK_PSO {
             diffList = bitDiff(gBest, p);
             changeParticle(diffList, i);
 
+
             if (explored.contains(p.X)) {
                 //the particle is already explored, change one random bit
                 int rand = (int) (HTWUI.size() * Math.random());
@@ -394,28 +392,23 @@ public class TOPK_PSO {
 
                 //bitset before pev
                 BitSet copy1 = (BitSet) p.X.clone();
-
                 BitSet tidSet = pev_check(p);
 
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
-                    long start = System.currentTimeMillis();
                     p.fitness = calcFitness(p, tidSet, i);
-                    long e = System.currentTimeMillis();
-                    if (e - start > 0) {
-                        count += (e - start);
-                    }
+
                     //update pBest and gBest
                     if (p.fitness > pBest[i].fitness) {
-                        pBest[i] = new Particle(p.X, p.fitness);
+                        Particle s = new Particle(p.X, p.fitness);
+                        pBest[i] = s;
                         if (p.fitness > gBest.fitness) {
-                            gBest = new Particle(p.X, p.fitness);
+                            gBest = s;
                         }
                     }
+                    // particle is HUI
                     if (p.fitness > minSolutionFitness || sols.getSol().size() < k) {
-                        // particle is HUI
-                        Particle s = new Particle(p.X, p.fitness);
-                        sols.add(s);
+                        sols.add(new Particle(p.X, p.fitness));
                     }
                     explored.add((BitSet) p.X.clone()); //set current particle as explored
                 }
@@ -824,7 +817,6 @@ public class TOPK_PSO {
         System.out.println("minUtil: " + minUtil);
 
         //2nd DB-Scan: prune and initialize db
-        //List<List<Pair>> db = new ArrayList<>();
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
             int tid = 0;
@@ -841,7 +833,6 @@ public class TOPK_PSO {
                     int twu = itemTWU1.get(item);
                     if (twu >= minUtil) {
 
-
                         if (!itemNames.containsKey(item)) {
                             name++;
                             itemNames.put(item, name);
@@ -856,7 +847,6 @@ public class TOPK_PSO {
                         it.TIDS.set(tid);
                         it.totalUtil += util;
                         it.maxUtil = (it.maxUtil == 0) ? util : Math.max(it.maxUtil, util);
-
                     }
 
                 }
