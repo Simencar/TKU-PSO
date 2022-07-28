@@ -12,7 +12,6 @@ public class TOPK_PSO {
     private ArrayList<Item> HTWUI = new ArrayList<>();
     private HashSet<BitSet> explored = new HashSet<>();
     private HashMap<Integer, Integer> itemNamesRev = new HashMap<>();
-    private int shortestTransactionID;
     private int std;
     private int lowEst = 0;
     private int highEst = 0;
@@ -27,11 +26,10 @@ public class TOPK_PSO {
     TreeSet<Item> sizeOneItemsets = new TreeSet<>();
     int p = 0;
     long twuSum = 0;
-    Random random = new Random();
 
 
     //file paths
-    final String dataset = "kosarak";
+    final String dataset = "accidents";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -39,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 15;
+    final int k = 20;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -160,9 +158,9 @@ public class TOPK_PSO {
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
 
-        init(); //initialize db from input file and prune
+        init2(); //initialize db from input file and prune
 
-        optimizeDatabase(); //various optimizations on transactions and items
+        //optimizeDatabase(); //various optimizations on transactions and items
 
         sols = new Solutions(k);
 
@@ -180,7 +178,6 @@ public class TOPK_PSO {
             sizeOneItemsets.add(item);
             twuSum += itemTWU.get(item.item);
         }
-
 
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
@@ -214,6 +211,7 @@ public class TOPK_PSO {
                 }
             }
         }
+
         endTimestamp = System.currentTimeMillis();
         checkMemory();
         writeOut();
@@ -253,16 +251,8 @@ public class TOPK_PSO {
             if (!explored.contains(p.X)) {
                 //check if HUI/CHUI
                 if (p.fitness > minSolutionFitness) {
-                    if (closed) {
-                        //check if particle is closed
-                        if (isClosed(p, shortestTransactionID, tidSet)) {
-                            Particle s = new Particle(p.X, p.fitness);
-                            sols.add(s);
-                        }
-                    } else {
-                        Particle s = new Particle(p.X, p.fitness);
-                        sols.add(s);
-                    }
+                    Particle s = new Particle(p.X, p.fitness);
+                    sols.add(s);
                 }
             }
             if (i == 0) {
@@ -295,13 +285,19 @@ public class TOPK_PSO {
         BitSet copyBitSet = (BitSet) orgBitSet.clone();
         p.estFitness = avgEstimate ? HTWUI.get(item1 - 1).avgUtil : HTWUI.get(item1 - 1).maxUtil;
         for (int i = p.X.nextSetBit(item1 + 1); i != -1; i = p.X.nextSetBit(i + 1)) {
-            orgBitSet.and(HTWUI.get(i - 1).TIDS);
-            //the two items have common transactions
-            if (orgBitSet.cardinality() > 0) {
-                copyBitSet = (BitSet) orgBitSet.clone();
-                p.estFitness += avgEstimate ? (HTWUI.get(i - 1).avgUtil) : (HTWUI.get(i - 1).maxUtil);
+            if (itemTWU.get(i) > minSolutionFitness) {
+                orgBitSet.and(HTWUI.get(i - 1).TIDS);
+                //the two items have common transactions
+                if (orgBitSet.cardinality() > 0) {
+                    copyBitSet = (BitSet) orgBitSet.clone();
+                    p.estFitness += avgEstimate ? (HTWUI.get(i - 1).avgUtil) : (HTWUI.get(i - 1).maxUtil);
+                } else {
+                    // no common transactions, remove the current item from the particle
+                    orgBitSet = (BitSet) copyBitSet.clone();
+                    p.X.clear(i);
+                }
             } else {
-                // no common transactions, remove the current item from the particle
+                //item TWU unpromising, remove item
                 orgBitSet = (BitSet) copyBitSet.clone();
                 p.X.clear(i);
             }
@@ -309,32 +305,6 @@ public class TOPK_PSO {
         return orgBitSet;
     }
 
-    /**
-     * Verifies the closure of a particle
-     *
-     * @param p                   The particle
-     * @param shortestTransaction The ID of the shortest transaction the particle occur, Stored during fitness calc
-     * @param tidSet              the TIDSET of the particle
-     * @return True if Closed, false otherwise
-     */
-    private boolean isClosed(Particle p, int shortestTransaction, BitSet tidSet) { //TODO: rem
-        int support = tidSet.cardinality();
-        List<Pair> sTrans = database.get(shortestTransaction);
-        //Loop all items in the shortest transaction
-        for (Pair pair : sTrans) {
-            //The item does not appear in the particle
-            if (!p.X.get(pair.item)) {
-                BitSet currentTids = (BitSet) tidSet.clone();
-                BitSet newItem = (BitSet) HTWUI.get(pair.item - 1).TIDS.clone();
-                currentTids.and(newItem);
-                //The support of the particle is the same with the new item appended -> The particle is not closed
-                if (currentTids.cardinality() == support) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
 
     /**
      * Calculates the fitness of a particle
@@ -346,7 +316,6 @@ public class TOPK_PSO {
      */
     private int calcFitness(Particle p, BitSet tidSet, int idx) {
         int fitness = 0;
-        int min = maxTransactionLength; //used to find the shortest transaction
         if (tidSet == null) {
             return 0; // particle does not occur in any transaction
         }
@@ -363,7 +332,6 @@ public class TOPK_PSO {
         if (idx != -1) {
             if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
                 // Skip fitness calculation
-                //count++;
                 return 0;
             }
         }
@@ -372,9 +340,6 @@ public class TOPK_PSO {
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
             int q = 0; //current index in transaction
             int item = p.X.nextSetBit(0); //current item we are looking for
-            if (database.get(i).size() < min) { //TODO: rem
-                shortestTransactionID = i; //store the shortest transaction of the itemset (for closure check)
-            }
             while (item != -1) {
                 if (database.get(i).get(q).item == item) { //found item in transaction
                     fitness += database.get(i).get(q).utility;
@@ -413,16 +378,15 @@ public class TOPK_PSO {
                 int rand = (int) (HTWUI.size() * Math.random());
                 int change = HTWUI.get(rand).item;
                 int twu = itemTWU.get(change);
-                if (twu < minSolutionFitness && twu < pBest[i].fitness) { // TODO: TEST ACC WITHOUT PBEST
+                if (twu < minSolutionFitness) { // TODO: TEST ACC WITHOUT PBEST
                     //item is unpromising, always clear it
                     p.X.clear(change);
-                }
-                else {
+                } else {
                     p.X.flip(change);
                 }
             }
 
-            // System.out.println(p.X.cardinality());
+            //System.out.println(p.X.cardinality());
 
 
             //avoid PEV-check and fit. calc. if particle is already explored
@@ -433,11 +397,14 @@ public class TOPK_PSO {
 
                 BitSet tidSet = pev_check(p);
 
-
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
+                    long start = System.currentTimeMillis();
                     p.fitness = calcFitness(p, tidSet, i);
-
+                    long e = System.currentTimeMillis();
+                    if (e - start > 0) {
+                        count += (e - start);
+                    }
                     //update pBest and gBest
                     if (p.fitness > pBest[i].fitness) {
                         pBest[i] = new Particle(p.X, p.fitness);
@@ -446,17 +413,9 @@ public class TOPK_PSO {
                         }
                     }
                     if (p.fitness > minSolutionFitness || sols.getSol().size() < k) {
-                        if (closed) {
-                            if (isClosed(p, shortestTransactionID, tidSet)) {
-                                //Particle is CHUI
-                                Particle s = new Particle(p.X, p.fitness);
-                                sols.add(s);
-                            }
-                        } else {
-                            // particle is HUI
-                            Particle s = new Particle(p.X, p.fitness);
-                            sols.add(s);
-                        }
+                        // particle is HUI
+                        Particle s = new Particle(p.X, p.fitness);
+                        sols.add(s);
                     }
                     explored.add((BitSet) p.X.clone()); //set current particle as explored
                 }
@@ -480,10 +439,9 @@ public class TOPK_PSO {
                 //position to change
                 int change = (int) (diffList.size() * Math.random());
                 int twu = itemTWU.get(diffList.get(change));
-                if (twu < minSolutionFitness && twu < pBest[pos].fitness) { //TODO: TEST ACC WITHOUT PBEST
+                if (twu < minSolutionFitness) { //TODO: TEST ACC WITHOUT PBEST
                     //item is unpromising, always clear it
                     population[pos].X.clear(diffList.get(change));
-                    count++;
                 } else {
                     //flip the bit of the selected item
                     population[pos].X.flip(diffList.get(change));
