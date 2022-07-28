@@ -413,7 +413,7 @@ public class TOPK_PSO {
                 int rand = (int) (HTWUI.size() * Math.random());
                 int change = HTWUI.get(rand).item;
                 int twu = itemTWU.get(change);
-                if (twu < minSolutionFitness && twu < pBest[i].fitness) {
+                if (twu < minSolutionFitness && twu < pBest[i].fitness) { // TODO: TEST ACC WITHOUT PBEST
                     //item is unpromising, always clear it
                     p.X.clear(change);
                 }
@@ -480,7 +480,7 @@ public class TOPK_PSO {
                 //position to change
                 int change = (int) (diffList.size() * Math.random());
                 int twu = itemTWU.get(diffList.get(change));
-                if (twu < minSolutionFitness && twu < pBest[pos].fitness) {
+                if (twu < minSolutionFitness && twu < pBest[pos].fitness) { //TODO: TEST ACC WITHOUT PBEST
                     //item is unpromising, always clear it
                     population[pos].X.clear(diffList.get(change));
                     count++;
