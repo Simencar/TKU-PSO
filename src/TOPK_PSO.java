@@ -45,7 +45,6 @@ public class TOPK_PSO {
     double maxMemory = 0; // the maximum memory usage
     long startTimestamp = 0; // the time the algorithm started
     long endTimestamp = 0; // the time the algorithm terminated
-    long totalUtil = 0; // the total utility in the DB
 
 
     // this class represent an item and its utility in a transaction
@@ -123,6 +122,7 @@ public class TOPK_PSO {
         }
     }
 
+    //class for storing the solutions
     public class Solutions {
         TreeSet<Particle> sol = new TreeSet<>();
         final int size;
@@ -542,7 +542,6 @@ public class TOPK_PSO {
                 String[] items = split[0].split(" ");
                 String[] utilities = split[2].split(" ");
                 int transactionUtility = Integer.parseInt(split[1]);
-                totalUtil += transactionUtility;
                 transUtils.add(transactionUtility);
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
@@ -649,9 +648,9 @@ public class TOPK_PSO {
      *
      * @param db         The database to prune
      * @param transUtils The current transaction utilities of the database
-     * @Param topK       The topK 1-itemsets with their utility
-     * @Param utils      All 1-itemsets with their utility
-     * @Param idx        Counter for generating 2-itemsets
+     * @param topK       The topK 1-itemsets with their utility
+     * @param utils      All 1-itemsets with their utility
+     * @param idx        Counter for generating 2-itemsets
      */
     private void ETP(List<List<Pair>> db, List<Integer> transUtils, List<Pair> topK,
                      List<Pair> utils, int idx) {
@@ -718,7 +717,7 @@ public class TOPK_PSO {
      *
      * @param fitness utility of the 2-itemset
      * @param topK    The current topK HUIs
-     * @return
+     * @return new top-k utilities
      */
     private List<Pair> updateMinUtil(int fitness, List<Pair> topK) {
         if (fitness > minUtil) {
@@ -777,7 +776,6 @@ public class TOPK_PSO {
 
     private void init2() {
         Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
-        List<Integer> transUtils = new ArrayList<>(); //holds TU for each transaction
         Map<Integer, Integer> itemUtil = new HashMap<>(); //holds utility of each 1-itemset
 
         String currentLine;
@@ -789,8 +787,6 @@ public class TOPK_PSO {
                 String[] items = split[0].split(" ");
                 String[] utilities = split[2].split(" ");
                 int transactionUtility = Integer.parseInt(split[1]);
-                totalUtil += transactionUtility;
-                transUtils.add(transactionUtility);
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
