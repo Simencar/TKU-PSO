@@ -11,7 +11,7 @@ import java.util.TreeSet;
 public class FindAcc {
 
     public static void main(String[] args) {
-        String dataset = "retail25";
+        String dataset = "kosarak";
         String res = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
         String out = "D:\\Documents\\Skole\\Master\\Work\\out.txt";
         int solutions = 0;

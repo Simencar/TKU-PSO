@@ -27,11 +27,11 @@ public class TOPK_PSO {
     TreeSet<Item> sizeOneItemsets = new TreeSet<>();
     int p = 0;
     long twuSum = 0;
-
+    Random random = new Random();
 
 
     //file paths
-    final String dataset = "retail";
+    final String dataset = "kosarak";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -39,7 +39,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1;
+    final int k = 15;
     final boolean closed = false; //true = find CHUIS, false = find HUIS
     final boolean avgEstimate = true;
 
@@ -140,7 +140,7 @@ public class TOPK_PSO {
             }
             sol.add(p);
             newS = true;
-            if(sol.size() == size) {
+            if (sol.size() == size) {
                 minSolutionFitness = sol.first().fitness;
             }
         }
@@ -204,7 +204,7 @@ public class TOPK_PSO {
                 }
 
                 if (newS) {
-                    System.out.println("iteration: " + i);
+                    //System.out.println("iteration: " + i);
                 }
 
                 if (i % 100 == 0 && highEst > 0 && i > 0) { //check each 100th iteration
@@ -275,7 +275,7 @@ public class TOPK_PSO {
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
         }
-        sizeOneItemsets = null;
+        //sizeOneItemsets = null;
     }
 
 
@@ -363,7 +363,7 @@ public class TOPK_PSO {
         if (idx != -1) {
             if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
                 // Skip fitness calculation
-                count++;
+                //count++;
                 return 0;
             }
         }
@@ -412,17 +412,32 @@ public class TOPK_PSO {
                 //the particle is already explored, change one random bit
                 int rand = (int) (HTWUI.size() * Math.random());
                 int change = HTWUI.get(rand).item;
-                p.X.flip(change);
+                int twu = itemTWU.get(change);
+                if (twu < minSolutionFitness && twu < pBest[i].fitness) {
+                    //item is unpromising, always clear it
+                    p.X.clear(change);
+                }
+                else {
+                    p.X.flip(change);
+                }
             }
+
+            // System.out.println(p.X.cardinality());
+
 
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
+
                 //bitset before pev
                 BitSet copy1 = (BitSet) p.X.clone();
+
                 BitSet tidSet = pev_check(p);
+
+
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
                     p.fitness = calcFitness(p, tidSet, i);
+
                     //update pBest and gBest
                     if (p.fitness > pBest[i].fitness) {
                         pBest[i] = new Particle(p.X, p.fitness);
@@ -443,9 +458,7 @@ public class TOPK_PSO {
                             sols.add(s);
                         }
                     }
-                    //bitset after pev
-                    BitSet copy2 = (BitSet) p.X.clone();
-                    explored.add(copy2); //set current particle as explored
+                    explored.add((BitSet) p.X.clone()); //set current particle as explored
                 }
                 explored.add(copy1); //set particle before PEV-check as explored
             }
@@ -466,8 +479,15 @@ public class TOPK_PSO {
             for (int i = 0; i < num; i++) {
                 //position to change
                 int change = (int) (diffList.size() * Math.random());
-                //flip the bit of the selected item
-                population[pos].X.flip(diffList.get(change));
+                int twu = itemTWU.get(diffList.get(change));
+                if (twu < minSolutionFitness && twu < pBest[pos].fitness) {
+                    //item is unpromising, always clear it
+                    population[pos].X.clear(diffList.get(change));
+                    count++;
+                } else {
+                    //flip the bit of the selected item
+                    population[pos].X.flip(diffList.get(change));
+                }
             }
         }
     }
@@ -626,16 +646,14 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
-
         if (minUtil > 0) { //prune further
             ETP(db, transUtils, new ArrayList<>(utils.subList(0, k)), utils, 1);
         } else { //cant prune
             database = db;
             itemTWU = itemTWU1;
         }
+
     }
-
-
 
 
     private void ETP2(List<List<Pair>> db, List<Integer> transUtils) {
@@ -863,7 +881,7 @@ public class TOPK_PSO {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
                     int twu = itemTWU1.get(item);
-                    if(twu >= minUtil) {
+                    if (twu >= minUtil) {
 
 
                         if (!itemNames.containsKey(item)) {
@@ -876,7 +894,7 @@ public class TOPK_PSO {
                         item = itemNames.get(item);
                         itemTWU.put(item, twu);
                         transaction.add(new Pair(item, util));
-                        Item it = HTWUI.get(item -1);
+                        Item it = HTWUI.get(item - 1);
                         it.TIDS.set(tid);
                         it.totalUtil += util;
                         it.maxUtil = (it.maxUtil == 0) ? util : Math.max(it.maxUtil, util);
@@ -884,7 +902,7 @@ public class TOPK_PSO {
                     }
 
                 }
-                if(!transaction.isEmpty()) {
+                if (!transaction.isEmpty()) {
                     Collections.sort(transaction);
                     maxTransactionLength = Math.max(maxTransactionLength, transaction.size());
                     database.add(transaction);
