@@ -26,6 +26,7 @@ public class TOPK_PSO {
     TreeSet<Item> sizeOneItemsets = new TreeSet<>();
     int p = 0;
     long twuSum = 0;
+    boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
 
 
     //file paths
@@ -37,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 100;
+    final int k = 10;
     final boolean avgEstimate = true;
 
 
@@ -135,6 +136,9 @@ public class TOPK_PSO {
             if (sol.size() == size) {
                 sol.pollFirst();
             }
+            if(!sol.isEmpty()) {
+                runRWS = (p.fitness > sol.last().fitness) ? false : runRWS; //disable RWS on gBest this iteration
+            }
             sol.add(p);
             newS = true;
             if (sol.size() == size) {
@@ -168,6 +172,7 @@ public class TOPK_PSO {
         System.out.println("mem: " + maxMemory);
         System.out.println("mtl: " + maxTransactionLength);
         System.out.println("recCall: " + p);
+        System.out.println("trans: " + database.size());
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
         std = 0; // the standard deviation
@@ -177,7 +182,6 @@ public class TOPK_PSO {
             sizeOneItemsets.add(item);
             twuSum += itemTWU.get(item.item);
         }
-        boolean pruned = false;
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
             //only use avgEstimates if the standard deviation is small compared to the minUtil
@@ -187,11 +191,12 @@ public class TOPK_PSO {
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
+                runRWS = true;
                 //update each particle in population
                 update();
 
                 //gBest update RWS
-                if (!sols.getSol().isEmpty()) {
+                if(i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
                     }
@@ -201,7 +206,7 @@ public class TOPK_PSO {
 
 
                 if (newS) {
-                    System.out.println("iteration: " + i + "     MinFit: "+minSolutionFitness);
+                    System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
                 }
 
                 if (i % 50 == 0 && highEst > 0 && i > 0 && std != 1) { //check each 100th iteration
@@ -390,12 +395,15 @@ public class TOPK_PSO {
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
 
+
                 //bitset before pev
                 BitSet copy1 = (BitSet) p.X.clone();
                 BitSet tidSet = pev_check(p);
 
+
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
+
                     p.fitness = calcFitness(p, tidSet, i);
 
                     //update pBest and gBest
@@ -803,14 +811,17 @@ public class TOPK_PSO {
             e.printStackTrace();
         }
 
+
         //Set minUtil to utility of kth fittest 1-itemset
         ArrayList<Pair> utils = new ArrayList<>();
         for (int item : itemUtil.keySet()) {
             utils.add(new Pair(item, itemUtil.get(item)));
+
         }
         Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
         minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0; //set min utility
         System.out.println("minUtil: " + minUtil);
+
 
         //2nd DB-Scan: prune and initialize db
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
@@ -852,12 +863,12 @@ public class TOPK_PSO {
                     database.add(transaction);
                     tid++;
                 }
-
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     private void writeOut() throws IOException {
         StringBuilder sb = new StringBuilder();
