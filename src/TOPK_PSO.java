@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "accidents";
+    final String dataset = "chainstore";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -125,7 +125,7 @@ public class TOPK_PSO {
 
     //class for storing the solutions
     public class Solutions {
-        TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder());
+        TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster RWS iteration
         final int size;
 
         public Solutions(int size) {
@@ -136,14 +136,17 @@ public class TOPK_PSO {
             if (sol.size() == size) {
                 sol.pollLast();
             }
+            sol.add(p);
+            newS = true;
+
             if (!sol.isEmpty()) {
                 runRWS = (p.fitness > sol.first().fitness) ? false : runRWS; //disable RWS on gBest this iteration
             }
-            sol.add(p);
-            newS = true;
+
             if (sol.size() == size) {
                 minSolutionFitness = sol.last().fitness;
             }
+
         }
 
         public TreeSet<Particle> getSol() {
@@ -199,7 +202,6 @@ public class TOPK_PSO {
 
 
                 //gBest update RWS
-                long start = System.nanoTime();
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
@@ -208,9 +210,6 @@ public class TOPK_PSO {
 
                     selectGBest(pos);
                 }
-                long end = System.nanoTime();
-                count += end-start;
-
 
 
                 if (newS) {
@@ -272,8 +271,7 @@ public class TOPK_PSO {
             if (!explored.contains(p.X)) {
                 //check if HUI/CHUI
                 if (p.fitness > minSolutionFitness) {
-                    Particle s = new Particle(p.X, p.fitness);
-                    sols.add(s);
+                    sols.add(new Particle(p.X, p.fitness));
                 }
             }
             if (i == 0) {
@@ -427,7 +425,7 @@ public class TOPK_PSO {
                         }
                     }
                     // particle is HUI
-                    if (p.fitness > minSolutionFitness || sols.getSol().size() < k) {
+                    if (p.fitness > minSolutionFitness) {
                         sols.add(new Particle(p.X, p.fitness));
                     }
                     explored.add((BitSet) p.X.clone()); //set current particle as explored
