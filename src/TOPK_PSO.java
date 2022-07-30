@@ -540,7 +540,7 @@ public class TOPK_PSO {
         for (Particle hui : sols.getSol()) {
             tempSum += hui.fitness;
             double percent = tempSum / sum;
-            rouletteProbs.add(percent);
+            rouletteProbs.add(percent); //TODO SELECT GBEST HERE
         }
         return rouletteProbs;
     }
