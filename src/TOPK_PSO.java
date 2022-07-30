@@ -30,7 +30,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "kosarak";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -38,7 +38,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500;
+    final int k = 20;
     final boolean avgEstimate = true;
 
 
@@ -209,7 +209,7 @@ public class TOPK_PSO {
 
 
                 if (newS) {
-                    System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
+                    //System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
                 }
 
                 if (i % 50 == 0 && highEst > 0 && i > 0 && std != 1) { //check each 100th iteration
@@ -373,7 +373,7 @@ public class TOPK_PSO {
 
 
     /**
-     * Updates population and checks for new CHUIs
+     * Updates population and checks for new HUIs
      */
     private void update() {
         for (int i = 0; i < pop_size; i++) {
@@ -381,24 +381,24 @@ public class TOPK_PSO {
             //different bits between pBest and current particle
             List<Integer> diffList = bitDiff(pBest[i], p);
             //change a random amount of these bits
-            changeParticle(diffList, i);
+            changeParticle(diffList, p);
             //repeat for gBest
             diffList = bitDiff(gBest, p);
-            changeParticle(diffList, i);
+            changeParticle(diffList, p);
 
             if (explored.contains(p.X)) {
                 //the particle is already explored, change one random bit
                 int rand = (int) (HTWUI.size() * Math.random());
                 Item item = HTWUI.get(rand);
-                if (item.twu < minSolutionFitness) { // TODO: TEST ACC WITHOUT PBEST
-                    //item is unpromising, always clear it
+                if (item.twu < minSolutionFitness) {
+                    // item unpromising, always clear
                     p.X.clear(item.item);
                 } else {
                     p.X.flip(item.item);
                 }
             }
 
-            //System.out.println(p.X.cardinality());
+            System.out.println(p.X.cardinality());
 
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
@@ -433,10 +433,9 @@ public class TOPK_PSO {
      * Flips a random number of bits in current particle, only bits that are opposite to pBest/gBest are considered
      *
      * @param diffList bit differences between particle and pBest/gBest
-     * @param idx      position of current particle in population
+     * @param p      Particle to change
      */
-    private void changeParticle(List<Integer> diffList, int idx) {
-        //TODO: only include more items if size less than max transaction size
+    private void changeParticle(List<Integer> diffList, Particle p) {
         if (diffList.size() > 0) {
             //number of items to change
             int num = (int) (diffList.size() * Math.random() + 1);
@@ -444,11 +443,11 @@ public class TOPK_PSO {
                 int pos = (int) (diffList.size() * Math.random());
                 Item item = HTWUI.get(diffList.get(pos) - 1);
                 if (item.twu < minSolutionFitness) {
-                    //item is unpromising, always clear it
-                    population[idx].X.clear(item.item);
+                    //item unpromising, always clear
+                    p.X.clear(item.item);
                 } else {
                     //flip the bit of the selected item
-                    population[idx].X.flip(item.item);
+                    p.X.flip(item.item);
                 }
             }
 
@@ -483,8 +482,6 @@ public class TOPK_PSO {
         double tempSum = 0;
         //Set probabilities based on TWU-proportion
         for (int i = 0; i < HTWUI.size(); i++) {
-            //int item = HTWUI.get(i).item;
-            //tempSum += itemTWU.get(item);
             tempSum += HTWUI.get(i).twu;
             double percent = tempSum / twuSum;
             probRange.add(percent);
