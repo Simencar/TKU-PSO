@@ -3,7 +3,6 @@ import java.util.*;
 
 public class TOPK_PSO {
 
-    //private Map<Integer, Integer> itemTWU = new HashMap<>();
     private List<List<Pair>> database = new ArrayList<>();
     private Particle gBest;
     private Particle[] pBest;
@@ -17,7 +16,7 @@ public class TOPK_PSO {
     private int highEst = 0;
     int minSolutionFitness = 0;
     Solutions sols;
-    int count = 0;
+    long count = 0;
     boolean newS = false;
     long disUtil = 0;
     int minUtil;
@@ -30,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "kosarak";
+    final String dataset = "chainstore";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -38,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 20;
+    final int k = 500;
     final boolean avgEstimate = true;
 
 
@@ -126,7 +125,7 @@ public class TOPK_PSO {
 
     //class for storing the solutions
     public class Solutions {
-        TreeSet<Particle> sol = new TreeSet<>();
+        TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder());
         final int size;
 
         public Solutions(int size) {
@@ -135,15 +134,15 @@ public class TOPK_PSO {
 
         public void add(Particle p) {
             if (sol.size() == size) {
-                sol.pollFirst();
+                sol.pollLast();
             }
             if (!sol.isEmpty()) {
-                runRWS = (p.fitness > sol.last().fitness) ? false : runRWS; //disable RWS on gBest this iteration
+                runRWS = (p.fitness > sol.first().fitness) ? false : runRWS; //disable RWS on gBest this iteration
             }
             sol.add(p);
             newS = true;
             if (sol.size() == size) {
-                minSolutionFitness = sol.first().fitness;
+                minSolutionFitness = sol.last().fitness;
             }
         }
 
@@ -187,10 +186,10 @@ public class TOPK_PSO {
         explored = new HashSet<>();
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
-            //only use avgEstimates if the standard deviation is small compared to the minUtil
-            //avgEstimate = (double) std / minUtil < 0.0001;
+
             //initialize the population
             generatePop();
+
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
@@ -198,14 +197,18 @@ public class TOPK_PSO {
                 //update each particle in population
                 update();
 
+                long start = System.nanoTime();
                 //gBest update RWS
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
                     }
                     int pos = rouletteSelect(probRange);
+
                     selectGBest(pos);
                 }
+                long end = System.nanoTime();
+                count += end-start;
 
 
                 if (newS) {
@@ -281,7 +284,7 @@ public class TOPK_PSO {
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
         }
-        //sizeOneItemsets = null;
+        sizeOneItemsets = null;
     }
 
 
@@ -346,6 +349,7 @@ public class TOPK_PSO {
             }
         }
 
+
         //calculate exact fitness
         int fitness = 0;
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
@@ -398,18 +402,20 @@ public class TOPK_PSO {
                 }
             }
 
-            System.out.println(p.X.cardinality());
+            //System.out.println(p.X.cardinality());
 
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
                 //bitset before pev
                 BitSet copy1 = (BitSet) p.X.clone();
+
                 BitSet tidSet = pev_check(p);
 
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
 
                     p.fitness = calcFitness(p, tidSet, i);
+
                     //update pBest and gBest
                     if (p.fitness > pBest[i].fitness) {
                         Particle s = new Particle(p.X, p.fitness);
@@ -433,7 +439,7 @@ public class TOPK_PSO {
      * Flips a random number of bits in current particle, only bits that are opposite to pBest/gBest are considered
      *
      * @param diffList bit differences between particle and pBest/gBest
-     * @param p      Particle to change
+     * @param p        Particle to change
      */
     private void changeParticle(List<Integer> diffList, Particle p) {
         if (diffList.size() > 0) {
@@ -526,7 +532,7 @@ public class TOPK_PSO {
         double sum = 0;
         double tempSum = 0;
         List<Double> rouletteProbs = new ArrayList<>();
-        for (Particle hui : sols.getSol()) {
+        for (Particle hui : sols.getSol()) {  //TODO: can be constant time
             sum += hui.fitness;
         }
         for (Particle hui : sols.getSol()) {
