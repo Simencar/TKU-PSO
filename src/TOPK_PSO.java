@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "accidents";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -189,7 +189,7 @@ public class TOPK_PSO {
 
             //initialize the population
             generatePop();
-
+            //TODO: if minutil is 0, insert sizeoneitemsets to sols
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
@@ -197,8 +197,9 @@ public class TOPK_PSO {
                 //update each particle in population
                 update();
 
-                long start = System.nanoTime();
+
                 //gBest update RWS
+                long start = System.nanoTime();
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
@@ -209,6 +210,7 @@ public class TOPK_PSO {
                 }
                 long end = System.nanoTime();
                 count += end-start;
+
 
 
                 if (newS) {
