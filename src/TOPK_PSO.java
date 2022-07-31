@@ -236,7 +236,9 @@ public class TOPK_PSO {
 
 
     /**
-     *
+     * Initializes Pop_size number of particles for the population.
+     * Each particle is initialized to a 1-itemset, starting from the fittest one
+     * If #1-itemsets < Pop_size, then the leftover particles are initialized with RWS based on TWU
      */
     private void generatePop() {
         List<Double> rouletteProbabilities = (HTWUI.size() < pop_size) ? rouletteProbabilities() : null;
@@ -284,7 +286,8 @@ public class TOPK_PSO {
     }
 
     /**
-     *
+     * Fills the solution-set with the 1-itemsets that are left after generatePop().
+     * Repeats until we have k solutions or there are no more 1-itemsets
      */
     private void fillSolutions() {
         while(sols.getSize() < k && !sizeOneItemsets.isEmpty()) {
