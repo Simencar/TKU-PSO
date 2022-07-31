@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "kosarak";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -37,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500;
+    final int k = 200;
     final boolean avgEstimate = true;
 
 
@@ -61,7 +61,6 @@ public class TOPK_PSO {
             return utility;
         }
 
-
         public int compareTo(Pair o) {
             return (this.item < o.item) ? -1 : 1;
         }
@@ -80,11 +79,9 @@ public class TOPK_PSO {
             this.item = item;
         }
 
-
         public String toString() {
             return String.valueOf(item);
         }
-
 
         public int compareTo(Item o) {
             return (this.totalUtil <= o.totalUtil) ? -1 : 1;
@@ -106,11 +103,9 @@ public class TOPK_PSO {
             this.fitness = fitness;
         }
 
-
         public String toString() {
             return String.valueOf(fitness);
         }
-
 
         public int compareTo(Particle o) {
             return (this.fitness <= o.fitness) ? -1 : 1;
@@ -121,6 +116,8 @@ public class TOPK_PSO {
     public class Solutions {
         final int size;
         TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster iteration in selectGbest()
+        //TreeSet cannot contain duplicate elements. The compareTo of Particle must therefore not return 0 for any case
+        //as it will not be able to store all solutions with identical fitness
 
         public Solutions(int size) {
             this.size = size;
@@ -182,7 +179,6 @@ public class TOPK_PSO {
             item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality());
             std += item.maxUtil - item.avgUtil;
             sizeOneItemsets.add(item);
-            //twuSum += itemTWU.get(item.item);
             twuSum += item.twu;
         }
         explored = new HashSet<>();
@@ -191,7 +187,9 @@ public class TOPK_PSO {
 
             //initialize the population
             generatePop();
-            //TODO: if minutil is 0, insert sizeoneitemsets to sols
+
+            fillSolutions();
+
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
                 newS = false;
@@ -207,7 +205,6 @@ public class TOPK_PSO {
                         probRange = rouletteProbKHUI();
                     }
                     int pos = rouletteSelect(probRange);
-
                     selectGBest(pos);
                 }
                 long end = System.nanoTime();
@@ -215,7 +212,7 @@ public class TOPK_PSO {
 
 
                 if (newS) {
-                    //System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
+                    System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
                 }
 
                 if (i % 50 == 0 && highEst > 0 && i > 0 && std != 1) { //check each 100th iteration
@@ -233,16 +230,14 @@ public class TOPK_PSO {
         writeOut();
         System.out.println(sols.getSol());
         System.out.println("skipped: " + count);
-        System.out.print("pBest: ");
-        for (int i = 0; i < pBest.length; i++) {
-            System.out.print(pBest[i].fitness + " ");
-        }
-        System.out.println();
         System.out.println("explored: " + explored.size());
         //writeRes();
     }
 
 
+    /**
+     *
+     */
     private void generatePop() {
         List<Double> rouletteProbabilities = (HTWUI.size() < pop_size) ? rouletteProbabilities() : null;
         population = new Particle[pop_size];
@@ -285,6 +280,20 @@ public class TOPK_PSO {
             }
             BitSet clone = (BitSet) p.X.clone();
             explored.add(clone); //set particle as explored
+        }
+    }
+
+    /**
+     *
+     */
+    private void fillSolutions() {
+        while(sols.getSize() < k && !sizeOneItemsets.isEmpty()) {
+            Item item = sizeOneItemsets.pollLast();
+            Particle p = new Particle(HTWUI.size());
+            p.X.set(item.item);
+            p.fitness = item.totalUtil;
+            sols.add(p);
+            explored.add(p.X);
         }
         sizeOneItemsets = null;
     }
