@@ -290,7 +290,7 @@ public class TOPK_PSO {
      * Repeats until we have k solutions or there are no more 1-itemsets
      */
     private void fillSolutions() {
-        while(sols.getSize() < k && !sizeOneItemsets.isEmpty()) {
+        while (sols.getSize() < k && !sizeOneItemsets.isEmpty()) {
             Item item = sizeOneItemsets.pollLast();
             Particle p = new Particle(HTWUI.size());
             p.X.set(item.item);
@@ -363,7 +363,6 @@ public class TOPK_PSO {
             }
         }
 
-
         //calculate exact fitness
         int fitness = 0;
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
@@ -385,8 +384,6 @@ public class TOPK_PSO {
             highEst++;
         }
         return fitness;
-
-
     }
 
 
@@ -416,20 +413,14 @@ public class TOPK_PSO {
                 }
             }
 
-            //System.out.println(p.X.cardinality());
-
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
                 //bitset before pev
                 BitSet copy1 = (BitSet) p.X.clone();
-
                 BitSet tidSet = pev_check(p);
-
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
-
                     p.fitness = calcFitness(p, tidSet, i);
-
                     //update pBest and gBest
                     if (p.fitness > pBest[i].fitness) {
                         Particle s = new Particle(p.X, p.fitness);
@@ -470,7 +461,6 @@ public class TOPK_PSO {
                     p.X.flip(item.item);
                 }
             }
-
         }
     }
 
@@ -628,7 +618,6 @@ public class TOPK_PSO {
             database = db;
             //itemTWU = itemTWU1;
         }
-
     }
 
     /**
@@ -791,7 +780,6 @@ public class TOPK_PSO {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
 
         //Set minUtil to utility of kth fittest 1-itemset
         ArrayList<Pair> utils = new ArrayList<>();
