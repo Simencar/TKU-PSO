@@ -1,5 +1,3 @@
-import com.sun.source.tree.Tree;
-
 import java.io.*;
 import java.util.*;
 
@@ -20,7 +18,6 @@ public class TOPK_PSO {
     Solutions sols;
     long count = 0;
     boolean newS = false;
-    long disUtil = 0;
     int minUtil;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
@@ -28,10 +25,11 @@ public class TOPK_PSO {
     int p = 0;
     long twuSum = 0;
     boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
+    long discUtil = 0;
 
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "chess";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -39,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500;
+    final int k = 2000;
     final boolean avgEstimate = true;
 
 
@@ -130,9 +128,10 @@ public class TOPK_PSO {
 
         public void add(Particle p) {
             if (sol.size() == size) {
-                sol.pollLast();
+                discUtil -= sol.pollLast().fitness;
             }
             sol.add(p);
+            discUtil += p.fitness;
             newS = true;
 
             if (!sol.isEmpty()) {
@@ -198,6 +197,7 @@ public class TOPK_PSO {
 
 
                 //gBest update RWS
+                long start = System.nanoTime();
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteProbKHUI();
@@ -206,6 +206,8 @@ public class TOPK_PSO {
 
                     selectGBest(pos);
                 }
+                long end = System.nanoTime();
+                count += end-start;
 
 
                 if (newS) {
@@ -526,15 +528,11 @@ public class TOPK_PSO {
 
     private List<Double> rouletteProbKHUI() {
         double sum = 0;
-        double tempSum = 0;
         List<Double> rouletteProbs = new ArrayList<>();
-        for (Particle hui : sols.getSol()) {  //TODO: can be constant time
-            sum += hui.fitness;
-        }
         for (Particle hui : sols.getSol()) {
-            tempSum += hui.fitness;
-            double percent = tempSum / sum;
-            rouletteProbs.add(percent); //TODO SELECT GBEST HERE
+            sum += hui.fitness;
+            double percent = sum / discUtil;
+            rouletteProbs.add(percent);
         }
         return rouletteProbs;
     }
@@ -847,7 +845,6 @@ public class TOPK_PSO {
             sb.append("#UTIL: ");
             sb.append(p.fitness);
             sb.append(System.lineSeparator());
-            disUtil += p.fitness;
         }
         BufferedWriter w = new BufferedWriter(new FileWriter(resultPath));
         w.write(sb.toString());
@@ -893,7 +890,7 @@ public class TOPK_PSO {
         System.out.println(" Total time ~ " + (endTimestamp - startTimestamp)
                 + " ms");
         System.out.println(" Memory ~ " + maxMemory + " MB");
-        System.out.println(" Discovered Utility: " + disUtil);
+        System.out.println(" Discovered Utility: " + discUtil);
         System.out
                 .println("===================================================");
     }
