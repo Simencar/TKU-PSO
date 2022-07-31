@@ -1,3 +1,5 @@
+import com.sun.source.tree.Tree;
+
 import java.io.*;
 import java.util.*;
 
@@ -87,10 +89,7 @@ public class TOPK_PSO {
 
 
         public int compareTo(Item o) {
-            if (this.totalUtil == o.totalUtil) {
-                return 0;
-            }
-            return (this.totalUtil < o.totalUtil) ? -1 : 1;
+            return (this.totalUtil <= o.totalUtil) ? -1 : 1;
         }
     }
 
@@ -116,17 +115,14 @@ public class TOPK_PSO {
 
         @Override
         public int compareTo(Particle o) {
-            if (this.fitness == o.fitness) {
-                return 0;
-            }
-            return (this.fitness < o.fitness) ? -1 : 1;
+            return (this.fitness <= o.fitness) ? -1 : 1;
         }
     }
 
     //class for storing the solutions
     public class Solutions {
-        TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster RWS iteration
         final int size;
+        TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster iteration in selectGbest()
 
         public Solutions(int size) {
             this.size = size;
@@ -146,7 +142,6 @@ public class TOPK_PSO {
             if (sol.size() == size) {
                 minSolutionFitness = sol.last().fitness;
             }
-
         }
 
         public TreeSet<Particle> getSol() {
@@ -171,6 +166,7 @@ public class TOPK_PSO {
         sols = new Solutions(k);
 
         System.out.println("TWU_SIZE: " + HTWUI.size());
+
         checkMemory();
         System.out.println("mem: " + maxMemory);
         System.out.println("mtl: " + maxTransactionLength);
