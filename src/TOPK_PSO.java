@@ -29,7 +29,7 @@ public class TOPK_PSO {
 
 
     //file paths
-    final String dataset = "chess";
+    final String dataset = "chainstore";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -37,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 2000;
+    final int k = 500;
     final boolean avgEstimate = true;
 
 
@@ -61,7 +61,7 @@ public class TOPK_PSO {
             return utility;
         }
 
-        @Override
+
         public int compareTo(Pair o) {
             return (this.item < o.item) ? -1 : 1;
         }
@@ -80,7 +80,7 @@ public class TOPK_PSO {
             this.item = item;
         }
 
-        @Override
+
         public String toString() {
             return String.valueOf(item);
         }
@@ -106,12 +106,12 @@ public class TOPK_PSO {
             this.fitness = fitness;
         }
 
-        @Override
+
         public String toString() {
             return String.valueOf(fitness);
         }
 
-        @Override
+
         public int compareTo(Particle o) {
             return (this.fitness <= o.fitness) ? -1 : 1;
         }
@@ -145,6 +145,10 @@ public class TOPK_PSO {
 
         public TreeSet<Particle> getSol() {
             return sol;
+        }
+
+        public int getSize() {
+            return sol.size();
         }
 
     }
@@ -207,7 +211,7 @@ public class TOPK_PSO {
                     selectGBest(pos);
                 }
                 long end = System.nanoTime();
-                count += end-start;
+                count += end - start;
 
 
                 if (newS) {
