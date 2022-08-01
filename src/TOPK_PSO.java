@@ -15,7 +15,7 @@ public class TOPK_PSO {
     private int lowEst = 0; //number of fitness underestimates
     private int highEst = 0; //number of fitness overestimates
     private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
-    private Solutions sols; //class that handles storage of the top-k HUIs
+    private Solutions solutions; //class that handles storage of the top-k HUIs
     private boolean newS; //true if a new top-k HUI is discovered at current iteration
     private int minUtil;
     //TODO: optimize memory, item unnecessary
@@ -162,7 +162,7 @@ public class TOPK_PSO {
 
         //optimizeDatabase(); //various optimizations on transactions and items
 
-        sols = new Solutions(k);
+        solutions = new Solutions(k);
 
         System.out.println("TWU_SIZE: " + HTWUI.size());
 
@@ -186,7 +186,7 @@ public class TOPK_PSO {
 
             //initialize the population
             generatePop();
-
+            //if k > pop_size, fill the solution set with as many 1-itemsets as possible
             fillSolutions();
 
             List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
@@ -227,7 +227,7 @@ public class TOPK_PSO {
         endTimestamp = System.currentTimeMillis();
         checkMemory();
         writeOut();
-        System.out.println(sols.getSol());
+        System.out.println(solutions.getSol());
         System.out.println("skipped: " + count);
         System.out.println("explored: " + explored.size());
         //writeRes();
@@ -236,7 +236,7 @@ public class TOPK_PSO {
 
     /**
      * Initializes Pop_size number of particles for the population.
-     * Each particle is initialized to a 1-itemset, starting from the fittest one
+     * Each particle is initialized to a 1-itemset, starting from the fittest one.
      * If #1-itemsets < Pop_size, then the leftover particles are initialized with RWS based on TWU
      */
     private void generatePop() {
@@ -269,7 +269,7 @@ public class TOPK_PSO {
             if (!explored.contains(p.X)) {
                 //check if HUI/CHUI
                 if (p.fitness > minSolutionFitness) {
-                    sols.add(new Particle(p.X, p.fitness));
+                    solutions.add(new Particle(p.X, p.fitness));
                 }
             }
             if (i == 0) {
@@ -285,16 +285,17 @@ public class TOPK_PSO {
     }
 
     /**
-     * Fills the solution-set with the 1-itemsets that are left after generatePop().
-     * Repeats until we have k solutions or there are no more 1-itemsets
+     * Fills the solution-set with 1-itemsets.
+     * Repeats until there are k solutions or there are no more 1-itemsets
+     * Reason: increases the minSolutionFitness
      */
     private void fillSolutions() {
-        while (sols.getSize() < k && !sizeOneItemsets.isEmpty()) {
+        while (solutions.getSize() < k && !sizeOneItemsets.isEmpty()) {
             Item item = sizeOneItemsets.pollLast();
             Particle p = new Particle(HTWUI.size());
             p.X.set(item.item);
             p.fitness = item.totalUtil;
-            sols.add(p);
+            solutions.add(p);
             explored.add(p.X);
         }
         sizeOneItemsets = null;
@@ -387,7 +388,7 @@ public class TOPK_PSO {
 
 
     /**
-     * Updates population and checks for new HUIs
+     * Updates population and checks for new top-k HUIs
      */
     private void update() {
         for (int i = 0; i < pop_size; i++) {
@@ -428,9 +429,9 @@ public class TOPK_PSO {
                             gBest = s;
                         }
                     }
-                    // particle is HUI
+                    // particle is a top-k HUI
                     if (p.fitness > minSolutionFitness) {
-                        sols.add(new Particle(p.X, p.fitness));
+                        solutions.add(new Particle(p.X, p.fitness));
                     }
                     explored.add((BitSet) p.X.clone()); //set current particle as explored
                 }
@@ -464,11 +465,11 @@ public class TOPK_PSO {
     }
 
     /**
-     * Computes the bit difference between current particle and pBest/gBest
+     * Computes the bit difference between a particle and pBest/gBest
      *
      * @param best pBest/gBest
-     * @param p    the current particle
-     * @return List containing the different bit positions
+     * @param p    the particle
+     * @return List containing the different bit positions(items)
      */
     private List<Integer> bitDiff(Particle best, Particle p) {
         List<Integer> diffList = new ArrayList<>();
@@ -482,9 +483,9 @@ public class TOPK_PSO {
 
 
     /**
-     * Creates a list of probabilities for roulette wheel selection based on item TWU-values
+     * Creates probability range for roulette wheel selection on items, based on TWU
      *
-     * @return List of probability ranges
+     * @return List of item probability ranges
      */
     private List<Double> rouletteProbabilities() {
         List<Double> probRange = new ArrayList<>();
@@ -499,9 +500,9 @@ public class TOPK_PSO {
     }
 
     /**
-     * Select an item based on the Roulette wheel probabilities
+     * Roulette wheel selection. Selects a winner based on given probability range and a generated random number
      *
-     * @param probRange list of probability ranges for each item
+     * @param probRange list of probability ranges
      * @return
      */
     private int rouletteSelect(List<Double> probRange) { //TODO: make binary search
@@ -519,9 +520,13 @@ public class TOPK_PSO {
         return pos;
     }
 
+    /**
+     * updates gBest to a current top-k HUI
+     * @param pos the position of the selected particle in the solution set
+     */
     private void selectGBest(int pos) { //TODO: find more efficient way
         int c = 0;
-        for (Particle p : sols.getSol()) {
+        for (Particle p : solutions.getSol()) {
             if (c == pos) {
                 gBest = new Particle(p.X, p.fitness);
                 break;
@@ -531,10 +536,14 @@ public class TOPK_PSO {
     }
 
 
+    /**
+     * creates probability range for roulette wheel selection on current top-k HUIs
+     * @return list of top-k HUIs probability ranges
+     */
     private List<Double> rouletteProbKHUI() {
         double sum = 0;
         List<Double> rouletteProbs = new ArrayList<>();
-        for (Particle hui : sols.getSol()) {
+        for (Particle hui : solutions.getSol()) {
             sum += hui.fitness;
             double percent = sum / utilSum;
             rouletteProbs.add(percent);
@@ -840,7 +849,7 @@ public class TOPK_PSO {
 
     private void writeOut() throws IOException {
         StringBuilder sb = new StringBuilder();
-        for (Particle p : sols.getSol()) {
+        for (Particle p : solutions.getSol()) {
             for (int i = p.X.nextSetBit(0); i != -1; i = p.X.nextSetBit(i + 1)) {
                 sb.append(itemNamesRev.get(i));
                 sb.append(" ");
