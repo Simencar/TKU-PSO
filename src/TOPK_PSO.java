@@ -38,7 +38,7 @@ public class TOPK_PSO {
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
     final int k = 500; //Top-K HUIs to discover
-    final boolean avgEstimate = true;
+    final boolean avgEstimate = true; //TODO: TEST chainstore, AUTO SELECT
 
 
     //stats
