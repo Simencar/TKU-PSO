@@ -3,7 +3,7 @@ import java.util.*;
 
 public class TOPK_PSO {
 
-    private List<List<Pair>> database = new ArrayList<>();
+    private List<List<Pair>> database = new ArrayList<>(); //the database after pruning
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
     private Particle[] pBest; //list of personal fittest descendant of each particle
     private Particle[] population; //population of current particles
@@ -14,10 +14,11 @@ public class TOPK_PSO {
     private int std; //standard deviation between maxUtils and avgUtils
     private int lowEst = 0; //number of fitness underestimates
     private int highEst = 0; //number of fitness overestimates
-    private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k HUIs)
+    private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
     private Solutions sols; //class that handles storage of the top-k HUIs
-    private boolean newS = false; //true if a new top-k HUI is discovered at current iteration
+    private boolean newS; //true if a new top-k HUI is discovered at current iteration
     private int minUtil;
+    //TODO: optimize memory, item unnecessary
     private TreeSet<Item> sizeOneItemsets = new TreeSet<>(); //set with all 1-itemsets and their utility
     private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
     private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
@@ -36,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500;
+    final int k = 500; //Top-K HUIs to discover
     final boolean avgEstimate = true;
 
 
@@ -61,15 +62,15 @@ public class TOPK_PSO {
         }
 
         public int compareTo(Pair o) {
-            return (this.item < o.item) ? -1 : 1;
+            return (this.item <= o.item) ? -1 : 1;
         }
     }
 
     private static class Item implements Comparable<Item> {
-        int item; //item-name
-        BitSet TIDS; //TID set
-        int twu;
-        int totalUtil = 0; //utility of the item
+        int item; //item name
+        BitSet TIDS; //TidSet of item
+        int twu; // TWU of item
+        int totalUtil = 0; //utility of item
         int avgUtil; // average utility of item
         int maxUtil = 0; // maximum utility of item
 
