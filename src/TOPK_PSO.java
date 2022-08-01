@@ -1,3 +1,5 @@
+import com.sun.source.tree.Tree;
+
 import java.io.*;
 import java.util.*;
 
@@ -16,9 +18,8 @@ public class TOPK_PSO {
     private int highEst = 0; //number of fitness overestimates
     private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
     private Solutions solutions; //class that handles storage of the top-k HUIs
-    private boolean newS; //true if a new top-k HUI is discovered at current iteration
+    private boolean newS = false; //true if a new top-k HUI is discovered at current iteration
     private int minUtil;
-    //TODO: optimize memory, item unnecessary
     private TreeSet<Item> sizeOneItemsets = new TreeSet<>(); //set with all 1-itemsets and their utility
     private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
     private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
@@ -38,7 +39,7 @@ public class TOPK_PSO {
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
     final int k = 500; //Top-K HUIs to discover
-    final boolean avgEstimate = true; //TODO: TEST chainstore, AUTO SELECT
+    final boolean avgEstimate = true;
 
 
     //stats
@@ -63,6 +64,16 @@ public class TOPK_PSO {
 
         public int compareTo(Pair o) {
             return (this.item <= o.item) ? -1 : 1;
+        }
+    }
+
+    private static class TwuAndUtil {
+        int twu;
+        int utility;
+
+        public TwuAndUtil(int twu, int util) {
+            this.twu = twu;
+            this.utility = util;
         }
     }
 
@@ -128,7 +139,7 @@ public class TOPK_PSO {
                 utilSum -= sol.pollLast().fitness;
             }
             //disable RWS on gBest this iteration if particle is the new fittest solution
-            if(!sol.isEmpty()) {
+            if (!sol.isEmpty()) {
                 runRWS = (p.fitness > sol.first().fitness) ? false : runRWS;
             }
             sol.add(p);
@@ -158,7 +169,7 @@ public class TOPK_PSO {
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
 
-        init2(); //initialize db from input file and prune
+        init(); //initialize db from input file and prune
 
         //optimizeDatabase(); //various optimizations on transactions and items
 
@@ -183,25 +194,29 @@ public class TOPK_PSO {
         explored = new HashSet<>();
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
+            System.out.println("std: "+std);
 
             //initialize the population
             generatePop();
             //if k > pop_size, fill the solution set with as many 1-itemsets as possible
             fillSolutions();
 
-            List<Double> probRange = rouletteProbKHUI(); //roulette probabilities for current discovered HUIs
+            List<Double> probRange = rouletteTopK(); //roulette probabilities for current discovered HUIs
             for (int i = 0; i < iterations; i++) {
-                newS = false;
                 runRWS = true;
                 //update each particle in population
                 update();
 
+                if (newS) {
+                   // System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
+                }
 
                 //gBest update RWS
                 long start = System.nanoTime();
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
-                        probRange = rouletteProbKHUI();
+                        probRange = rouletteTopK();
+                        newS = false;
                     }
                     int pos = rouletteSelect(probRange);
                     selectGBest(pos);
@@ -210,13 +225,12 @@ public class TOPK_PSO {
                 count += end - start;
 
 
-                if (newS) {
-                    System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
-                }
 
-                if (i % 50 == 0 && highEst > 0 && i > 0 && std != 1) { //check each 100th iteration
+
+                if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) { //check each 100th iteration
                     //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
-                    std = ((double) lowEst / highEst < 0.01) ? 1 : std;
+                    std = ((double) lowEst / highEst < 0.01) ? std/2 : std;
+                    //System.out.println("it: "+i + " std: "+std + " low: " + lowEst+ " high: "+highEst);
                 }
                 if (i % 1000 == 0) {
                     System.out.println(i);
@@ -227,9 +241,10 @@ public class TOPK_PSO {
         endTimestamp = System.currentTimeMillis();
         checkMemory();
         writeOut();
-        System.out.println(solutions.getSol());
         System.out.println("skipped: " + count);
         System.out.println("explored: " + explored.size());
+        System.out.println("over    : " + highEst);
+        System.out.println("under   : " + lowEst);
         //writeRes();
     }
 
@@ -240,7 +255,7 @@ public class TOPK_PSO {
      * If #1-itemsets < Pop_size, then the leftover particles are initialized with RWS based on TWU
      */
     private void generatePop() {
-        List<Double> rouletteProbabilities = (HTWUI.size() < pop_size) ? rouletteProbabilities() : null;
+        List<Double> rouletteProbabilities = (HTWUI.size() < pop_size) ? rouletteTWU() : null;
         population = new Particle[pop_size];
         pBest = new Particle[pop_size];
         for (int i = 0; i < pop_size; i++) {
@@ -487,7 +502,7 @@ public class TOPK_PSO {
      *
      * @return List of item probability ranges
      */
-    private List<Double> rouletteProbabilities() {
+    private List<Double> rouletteTWU() {
         List<Double> probRange = new ArrayList<>();
         double tempSum = 0;
         //Set probabilities based on TWU-proportion
@@ -522,7 +537,8 @@ public class TOPK_PSO {
 
     /**
      * updates gBest to a current top-k HUI
-     * @param pos the position of the selected particle in the solution set
+     *
+     * @param pos the position of the selected HUI in the solution set
      */
     private void selectGBest(int pos) { //TODO: find more efficient way
         int c = 0;
@@ -538,9 +554,10 @@ public class TOPK_PSO {
 
     /**
      * creates probability range for roulette wheel selection on current top-k HUIs
+     *
      * @return list of top-k HUIs probability ranges
      */
-    private List<Double> rouletteProbKHUI() {
+    private List<Double> rouletteTopK() {
         double sum = 0;
         List<Double> rouletteProbs = new ArrayList<>();
         for (Particle hui : solutions.getSol()) {
@@ -552,217 +569,11 @@ public class TOPK_PSO {
     }
 
 
+    /**
+     * Reads the input file, prunes unpromising items and initializes the database matrix.
+     */
     private void init() {
-        Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
-        List<Integer> transUtils = new ArrayList<>(); //holds TU for each transaction
-        Map<Integer, Integer> itemUtil = new HashMap<>(); //holds utility of each 1-itemset
-
-        String currentLine;
-        try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(dataPath)))) {
-            //1st DB-Scan: calculate TWU value for each item
-            while ((currentLine = data.readLine()) != null) {
-                String[] split = currentLine.split(":");
-                String[] items = split[0].split(" ");
-                String[] utilities = split[2].split(" ");
-                int transactionUtility = Integer.parseInt(split[1]);
-                transUtils.add(transactionUtility);
-                for (int i = 0; i < items.length; i++) {
-                    int item = Integer.parseInt(items[i]);
-                    int util = Integer.parseInt(utilities[i]);
-                    Integer twu = itemTWU1.get(item);
-                    twu = (twu == null) ? transactionUtility : twu + transactionUtility;
-                    itemTWU1.put(item, twu);
-                    //calculate utility of size 1 itemsets
-                    Integer currUtil = itemUtil.get(item);
-                    currUtil = (currUtil == null) ? util : util + currUtil;
-                    itemUtil.put(item, currUtil);
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        //Set minUtil to utility of kth fittest 1-itemset
-        ArrayList<Pair> utils = new ArrayList<>();
-        for (int item : itemUtil.keySet()) {
-            utils.add(new Pair(item, itemUtil.get(item)));
-        }
-        Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
-        minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0; //set min utility
-        System.out.println("minUtil: " + minUtil);
-
-        //2nd DB-Scan: prune and initialize db
-        List<List<Pair>> db = new ArrayList<>();
-        try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(dataPath)))) {
-            int tid = 0;
-            while ((currentLine = data.readLine()) != null) {
-                String[] split = currentLine.split(":");
-                String[] items = split[0].split(" ");
-                String[] utilities = split[2].split(" ");
-                List<Pair> transaction = new ArrayList<>();
-                for (int i = 0; i < items.length; i++) {
-                    int item = Integer.parseInt(items[i]);
-                    int util = Integer.parseInt(utilities[i]);
-                    if (itemTWU1.get(item) >= minUtil) {
-                        transaction.add(new Pair(item, util));
-                    } else {
-                        //item is pruned, update transaction utility
-                        int TU = transUtils.get(tid) - util;
-                        transUtils.set(tid, TU);
-                    }
-                }
-                db.add(transaction);
-                tid++;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        if (minUtil > 0) { //prune further
-            ETP(db, transUtils, new ArrayList<>(utils.subList(0, k)), utils, 1);
-        } else { //cant prune
-            database = db;
-            //itemTWU = itemTWU1;
-        }
-    }
-
-    /**
-     * Extended TWU Pruning.
-     * Recursively calculates item-TWUs, removes 1-LTWUI and updates TUs, until no items are removed.
-     *
-     * @param db         The database to prune
-     * @param transUtils The current transaction utilities of the database
-     * @param topK       The topK 1-itemsets with their utility
-     * @param utils      All 1-itemsets with their utility
-     * @param idx        Counter for generating 2-itemsets
-     */
-    private void ETP(List<List<Pair>> db, List<Integer> transUtils, List<Pair> topK,
-                     List<Pair> utils, int idx) {
-        Map<Integer, Integer> itemTWU1 = new HashMap<>();
-        rec++;
-        boolean pruned = false;
-        int fitness = 0;
-        int[] itemset = null;
-        if (idx < utils.size()) { //TODO: smarter selection, removed items are used
-            itemset = new int[]{utils.get(0).item, utils.get(idx).item};
-        }
-        //calculate TWU of each item and the utility of the generated 2-itemset
-        for (int i = 0; i < db.size(); i++) {
-            int TU = transUtils.get(i);
-            int count = 0;
-            int currFit = 0;
-            for (int j = 0; j < db.get(i).size(); j++) {
-                //twu calc
-                int item = db.get(i).get(j).item;
-                Integer twu = itemTWU1.get(item);
-                twu = (twu == null) ? TU : twu + TU;
-                itemTWU1.put(item, twu);
-
-                //itemset fitness calc
-                if (itemset != null && count < 2) {
-                    if (itemset[0] == item || itemset[1] == item) {
-                        count++;
-                        currFit += db.get(i).get(j).utility;
-                        fitness += (count == 2) ? currFit : 0;
-                    }
-                }
-            }
-        }
-        //raise the minUtil if the 2-itemsets' fitness is greater than minUtil
-        topK = updateMinUtil(fitness, topK);
-
-        //prune items with TWU < minUtil
-        for (int i = 0; i < db.size(); i++) {
-            List<Pair> revisedTransaction = new ArrayList<>();
-            for (int j = 0; j < db.get(i).size(); j++) {
-                int item = db.get(i).get(j).item;
-                int twu = itemTWU1.get(item);
-                if (twu >= minUtil) { //item is 1-HTWUI
-                    revisedTransaction.add(db.get(i).get(j)); //add item to revised transaction
-                } else { // item is 1-LTWUI
-                    pruned = true;
-                    //update transaction utility
-                    int TU = transUtils.get(i) - db.get(i).get(j).utility;
-                    transUtils.set(i, TU);
-                }
-            }
-            db.set(i, revisedTransaction);
-        }
-        if (pruned) { //item was removed, repeat pruning
-            ETP(db, transUtils, topK, utils, idx + 1);
-        } else { //pruning is finished
-            database = db;
-            //itemTWU = itemTWU1;
-        }
-    }
-
-    /**
-     * Updates minUtil if utility of 2-itemset is a current topK HUI. Only used during pruning to raise the minUtil
-     *
-     * @param fitness utility of the 2-itemset
-     * @param topK    The current topK HUIs
-     * @return new top-k utilities
-     */
-    private List<Pair> updateMinUtil(int fitness, List<Pair> topK) {
-        if (fitness > minUtil) {
-            topK.add(new Pair(0, fitness));
-            Collections.sort(topK, Comparator.comparingInt(Pair::getUtility).reversed());
-            minUtil = (k <= topK.size()) ? topK.get(k - 1).utility : 0;
-            System.out.println("minUtil: " + minUtil);
-            return topK.subList(0, k);
-        }
-        return topK;
-    }
-
-    /**
-     * Conducts various optimizations on the DB for faster runtimes and reduced memory usage.
-     * The function also initializes variables needed for the fitness estimation approach.
-     */
-    private void optimizeDatabase() {
-        HashMap<Integer, Integer> itemNames = new HashMap<>();
-        HashMap<Integer, Integer> itemTWU1 = new HashMap<>();
-        int c = 0; //new item name
-        int transID = 0; //current TID
-        for (int i = 0; i < database.size(); i++) {
-            List<Pair> transaction = database.get(i);
-            if (transaction.isEmpty()) {
-                continue;
-            }
-            for (int j = 0; j < transaction.size(); j++) {
-                int item = transaction.get(j).item;
-                int utility = transaction.get(j).utility;
-                //give item new name between 1 and |1-HTWUI|
-                if (!itemNames.containsKey(item)) {
-                    //item has not been given new name yet
-                    c++; //increment name
-                    itemNames.put(item, c); //set name for this item
-                    itemNamesRev.put(c, item); //save the old name so it can be retrieved later
-                    Item itemClass = new Item(c); //this class stores different info for the item
-                    HTWUI.add(itemClass);
-                }
-                //int twu = itemTWU.get(item); //get the twu of this item //TODO: FIX IF USING
-                item = itemNames.get(item); //get the new name of the item
-                transaction.get(j).item = item; //change the name of the item in the transaction
-                //itemTWU1.put(item, twu); //store twu value with new name
-                Item it = HTWUI.get(item - 1);
-                it.TIDS.set(transID); //update the items' TidSet
-                it.totalUtil += utility; //update total utility of this item
-                it.maxUtil = (it.maxUtil == 0) ? utility : Math.max(it.maxUtil, utility); //update max utility
-            }
-            Collections.sort(transaction); //sort transaction according to item name
-            database.set(transID, transaction); //save the new revised transaction
-            maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update max trans. length
-            transID++;
-        }
-        database = database.subList(0, transID); //clear old transactions
-        //itemTWU = itemTWU1; //TODO: FIX IF USING
-    }
-
-    private void init2() {
-        Map<Integer, Integer> itemTWU1 = new HashMap<>(); //holds current TWU-value for each item
-        Map<Integer, Integer> itemUtil = new HashMap<>(); //holds utility of each 1-itemset
+        Map<Integer, TwuAndUtil> twuAndUtilMap = new HashMap<>();
 
         String currentLine;
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
@@ -776,13 +587,13 @@ public class TOPK_PSO {
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    Integer twu = itemTWU1.get(item);
-                    twu = (twu == null) ? transactionUtility : twu + transactionUtility;
-                    itemTWU1.put(item, twu);
-                    //calculate utility of size 1 itemsets
-                    Integer currUtil = itemUtil.get(item);
-                    currUtil = (currUtil == null) ? util : util + currUtil;
-                    itemUtil.put(item, currUtil);
+                    //update twu
+                    Integer twu = (twuAndUtilMap.get(item) == null) ?
+                            transactionUtility : twuAndUtilMap.get(item).twu + transactionUtility;
+                    //update utility
+                    Integer currUtil = (twuAndUtilMap.get(item) == null) ?
+                            util : twuAndUtilMap.get(item).utility + util;
+                    twuAndUtilMap.put(item, new TwuAndUtil(twu, currUtil));
                 }
             }
         } catch (Exception e) {
@@ -790,13 +601,13 @@ public class TOPK_PSO {
         }
 
         //Set minUtil to utility of kth fittest 1-itemset
-        ArrayList<Pair> utils = new ArrayList<>();
-        for (int item : itemUtil.keySet()) {
-            utils.add(new Pair(item, itemUtil.get(item)));
+        ArrayList<Integer> utils = new ArrayList<>(twuAndUtilMap.size());
+        for (int item : twuAndUtilMap.keySet()) {
+            utils.add(twuAndUtilMap.get(item).utility);
 
         }
-        Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
-        minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0; //set min utility
+        Collections.sort(utils, Collections.reverseOrder()); //sort based on utility
+        minUtil = (k <= utils.size()) ? utils.get(k - 1) : 0; //set min utility
         System.out.println("minUtil: " + minUtil);
 
         //2nd DB-Scan: prune and initialize db
@@ -813,32 +624,32 @@ public class TOPK_PSO {
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    int twu = itemTWU1.get(item);
+                    int twu = twuAndUtilMap.get(item).twu;
                     if (twu >= minUtil) {
 
+                        //items are renamed from 1 to #1-HTWUI (faster bitset operations and lower memory usage)
                         if (!itemNames.containsKey(item)) {
-                            name++;
+                            name++; //new item name
                             itemNames.put(item, name);
                             itemNamesRev.put(name, item);
                             Item itemClass = new Item(name); //this obj stores different info for the item
-                            itemClass.twu = twu;
-                            //itemTWU.put(name, twu);
+                            itemClass.twu = twu; //store twu
+                            itemClass.totalUtil = twuAndUtilMap.get(item).utility; //store utility
                             HTWUI.add(itemClass);
                         }
-                        item = itemNames.get(item);
-                        transaction.add(new Pair(item, util));
-                        Item it = HTWUI.get(item - 1);
-                        it.TIDS.set(tid);
-                        it.totalUtil += util;
-                        it.maxUtil = (it.maxUtil == 0) ? util : Math.max(it.maxUtil, util);
+                        item = itemNames.get(item); //get the new name
+                        transaction.add(new Pair(item, util)); //rename the item
+                        Item itemClass = HTWUI.get(item - 1);
+                        itemClass.TIDS.set(tid); //update the items' TidSet
+                        //update the largest local utility for this item
+                        itemClass.maxUtil = (itemClass.maxUtil == 0) ? util : Math.max(itemClass.maxUtil, util);
                     }
-
                 }
                 if (!transaction.isEmpty()) {
-                    Collections.sort(transaction);
-                    maxTransactionLength = Math.max(maxTransactionLength, transaction.size());
-                    database.add(transaction);
-                    tid++;
+                    Collections.sort(transaction); //sort transaction according to item name
+                    maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update longest transaction
+                    database.add(transaction); //store revised transaction
+                    tid++; //increment transaction id
                 }
             }
         } catch (Exception e) {

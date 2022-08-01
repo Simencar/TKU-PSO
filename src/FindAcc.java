@@ -15,6 +15,7 @@ public class FindAcc {
         int found = 0;
 
         HashSet<TreeSet<Integer>> sol = new HashSet<>();
+        HashSet<TreeSet<Integer>> dup = new HashSet<>();
 
 
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
@@ -54,6 +55,10 @@ public class FindAcc {
                 if(sol.contains(itemset)) {
                     found++;
                 }
+                if (dup.contains(itemset)) {
+                    System.out.println("PROBLEM!!!!");
+                }
+                dup.add(itemset);
             }
         } catch (Exception e) {
             e.printStackTrace();
