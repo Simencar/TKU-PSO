@@ -4,32 +4,31 @@ import java.util.*;
 public class TOPK_PSO {
 
     private List<List<Pair>> database = new ArrayList<>();
-    private Particle gBest;
-    private Particle[] pBest;
-    private Particle[] population;
-    private int maxTransactionLength = 0;
-    private ArrayList<Item> HTWUI = new ArrayList<>();
-    private HashSet<BitSet> explored;
-    private HashMap<Integer, Integer> itemNamesRev = new HashMap<>();
-    private int std;
-    private int lowEst = 0;
-    private int highEst = 0;
-    int minSolutionFitness = 0;
-    Solutions sols;
+    private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
+    private Particle[] pBest; //list of personal fittest descendant of each particle
+    private Particle[] population; //population of current particles
+    private int maxTransactionLength = 0; //the number of items in the largest transaction
+    private ArrayList<Item> HTWUI = new ArrayList<>(); //List of all HTWUI
+    private HashSet<BitSet> explored; //set of current explored particles/itemsets
+    private HashMap<Integer, Integer> itemNamesRev = new HashMap<>(); //maps new item names to original
+    private int std; //standard deviation between maxUtils and avgUtils
+    private int lowEst = 0; //number of fitness underestimates
+    private int highEst = 0; //number of fitness overestimates
+    private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k HUIs)
+    private Solutions sols; //class that handles storage of the top-k HUIs
+    private boolean newS = false; //true if a new top-k HUI is discovered at current iteration
+    private int minUtil;
+    private TreeSet<Item> sizeOneItemsets = new TreeSet<>(); //set with all 1-itemsets and their utility
+    private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
+    private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
+    private long twuSum = 0; //the combined twu of all HTWUI (for faster RWS)
     long count = 0;
-    boolean newS = false;
-    int minUtil;
+    int rec = 0;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
-    TreeSet<Item> sizeOneItemsets = new TreeSet<>();
-    int p = 0;
-    long twuSum = 0;
-    boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
-    long discUtil = 0;
-
 
     //file paths
-    final String dataset = "kosarak";
+    final String dataset = "chainstore";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -37,7 +36,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 200;
+    final int k = 500;
     final boolean avgEstimate = true;
 
 
@@ -117,7 +116,7 @@ public class TOPK_PSO {
         final int size;
         TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster iteration in selectGbest()
         //TreeSet cannot contain duplicate elements. The compareTo of Particle must therefore not return 0 for any case
-        //as it will not be able to store all solutions with identical fitness
+        //as it will not be able to store solutions with identical fitness
 
         public Solutions(int size) {
             this.size = size;
@@ -125,18 +124,17 @@ public class TOPK_PSO {
 
         public void add(Particle p) {
             if (sol.size() == size) {
-                discUtil -= sol.pollLast().fitness;
+                utilSum -= sol.pollLast().fitness;
+            }
+            //disable RWS on gBest this iteration if particle is the new fittest solution
+            if(!sol.isEmpty()) {
+                runRWS = (p.fitness > sol.first().fitness) ? false : runRWS;
             }
             sol.add(p);
-            discUtil += p.fitness;
-            newS = true;
-
-            if (!sol.isEmpty()) {
-                runRWS = (p.fitness > sol.first().fitness) ? false : runRWS; //disable RWS on gBest this iteration
-            }
-
+            utilSum += p.fitness;
+            newS = true; //notify new solution is discovered
             if (sol.size() == size) {
-                minSolutionFitness = sol.last().fitness;
+                minSolutionFitness = sol.last().fitness; //raise to min fitness in set
             }
         }
 
@@ -170,7 +168,7 @@ public class TOPK_PSO {
         checkMemory();
         System.out.println("mem: " + maxMemory);
         System.out.println("mtl: " + maxTransactionLength);
-        System.out.println("recCall: " + p);
+        System.out.println("recCall: " + rec);
         System.out.println("trans: " + database.size());
 
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
@@ -537,7 +535,7 @@ public class TOPK_PSO {
         List<Double> rouletteProbs = new ArrayList<>();
         for (Particle hui : sols.getSol()) {
             sum += hui.fitness;
-            double percent = sum / discUtil;
+            double percent = sum / utilSum;
             rouletteProbs.add(percent);
         }
         return rouletteProbs;
@@ -633,7 +631,7 @@ public class TOPK_PSO {
     private void ETP(List<List<Pair>> db, List<Integer> transUtils, List<Pair> topK,
                      List<Pair> utils, int idx) {
         Map<Integer, Integer> itemTWU1 = new HashMap<>();
-        p++;
+        rec++;
         boolean pruned = false;
         int fitness = 0;
         int[] itemset = null;
@@ -894,7 +892,7 @@ public class TOPK_PSO {
         System.out.println(" Total time ~ " + (endTimestamp - startTimestamp)
                 + " ms");
         System.out.println(" Memory ~ " + maxMemory + " MB");
-        System.out.println(" Discovered Utility: " + discUtil);
+        System.out.println(" Discovered Utility: " + utilSum);
         System.out
                 .println("===================================================");
     }
