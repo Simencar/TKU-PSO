@@ -17,17 +17,16 @@ public class TOPK_PSO {
     private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
     private Solutions solutions; //class that handles storage of the top-k HUIs
     private boolean newS = false; //true if a new top-k HUI is discovered at current iteration
-    private TreeSet<Item> sizeOneItemsets = new TreeSet<>(); //set with all 1-itemsets and their utility
+    private TreeSet<Item> sizeOneItemsets; //set with all 1-itemsets and their utility
     private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
     private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
     private long twuSum = 0; //the combined twu of all HTWUI (for faster RWS)
     long count = 0;
-    int rec = 0;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "chess";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -35,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500; //Top-K HUIs to discover
+    final int k = 100; //Top-K HUIs to discover
     final boolean avgEstimate = true;
 
 
@@ -174,9 +173,9 @@ public class TOPK_PSO {
         checkMemory();
         System.out.println("mem: " + maxMemory);
         System.out.println("mtl: " + maxTransactionLength);
-        System.out.println("recCall: " + rec);
         System.out.println("trans: " + database.size());
 
+        sizeOneItemsets = new TreeSet<>();
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
         std = 0; // the standard deviation
         for (Item item : HTWUI) {
@@ -210,7 +209,7 @@ public class TOPK_PSO {
                     selectGBest(pos);
                 }
 
-                //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
+                //Tighten std if mostly overestimates are made (only relevant when avgEstimate is active)
                 if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) {
                     std = ((double) lowEst / highEst < 0.01) ? std / 2 : std;
                     //System.out.println("it: "+i + " std: "+std + " low: " + lowEst+ " high: "+highEst);
