@@ -1,5 +1,3 @@
-import com.sun.source.tree.Tree;
-
 import java.io.*;
 import java.util.*;
 
@@ -19,7 +17,6 @@ public class TOPK_PSO {
     private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
     private Solutions solutions; //class that handles storage of the top-k HUIs
     private boolean newS = false; //true if a new top-k HUI is discovered at current iteration
-    private int minUtil;
     private TreeSet<Item> sizeOneItemsets = new TreeSet<>(); //set with all 1-itemsets and their utility
     private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
     private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
@@ -50,16 +47,12 @@ public class TOPK_PSO {
 
     // this class represent an item and its utility in a transaction
     private static class Pair implements Comparable<Pair> {
-        int item;
-        int utility;
+        final int item;
+        final int utility;
 
         public Pair(int item, int utility) {
             this.item = item;
             this.utility = utility;
-        }
-
-        public int getUtility() {
-            return utility;
         }
 
         public int compareTo(Pair o) {
@@ -67,9 +60,10 @@ public class TOPK_PSO {
         }
     }
 
+    //used to store twu and util of each item during init() (instead of using two maps)
     private static class TwuAndUtil {
-        int twu;
-        int utility;
+        final int twu;
+        final int utility;
 
         public TwuAndUtil(int twu, int util) {
             this.twu = twu;
@@ -77,8 +71,9 @@ public class TOPK_PSO {
         }
     }
 
+    //stores various item info
     private static class Item implements Comparable<Item> {
-        int item; //item name
+        final int item; //item name
         BitSet TIDS; //TidSet of item
         int twu; // TWU of item
         int totalUtil = 0; //utility of item
@@ -99,7 +94,7 @@ public class TOPK_PSO {
         }
     }
 
-    // this class represent a particle
+    // this class represent a particle (the generated solutions)
     private static class Particle implements Comparable<Particle> {
         BitSet X; // items contained in particle (encoding vector)
         int fitness; // fitness/utility of particle
@@ -124,7 +119,7 @@ public class TOPK_PSO {
     }
 
     //class for storing the solutions
-    public class Solutions {
+    private class Solutions {
         final int size;
         TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster iteration in selectGbest()
         //TreeSet cannot contain duplicate elements. The compareTo of Particle must therefore not return 0 for any case
@@ -134,19 +129,20 @@ public class TOPK_PSO {
             this.size = size;
         }
 
+        //adds a new top-k HUI to the solution set
         public void add(Particle p) {
             if (sol.size() == size) {
-                utilSum -= sol.pollLast().fitness;
+                utilSum -= sol.pollLast().fitness; //remove the kth HUI and update utilSum
             }
             //disable RWS on gBest this iteration if particle is the new fittest solution
             if (!sol.isEmpty()) {
                 runRWS = (p.fitness > sol.first().fitness) ? false : runRWS;
             }
-            sol.add(p);
-            utilSum += p.fitness;
+            sol.add(p); // add the new HUI
+            utilSum += p.fitness; //update utilSum
             newS = true; //notify new solution is discovered
             if (sol.size() == size) {
-                minSolutionFitness = sol.last().fitness; //raise to min fitness in set
+                minSolutionFitness = sol.last().fitness; //update MSF
             }
         }
 
@@ -171,8 +167,6 @@ public class TOPK_PSO {
 
         init(); //initialize db from input file and prune
 
-        //optimizeDatabase(); //various optimizations on transactions and items
-
         solutions = new Solutions(k);
 
         System.out.println("TWU_SIZE: " + HTWUI.size());
@@ -194,25 +188,19 @@ public class TOPK_PSO {
         explored = new HashSet<>();
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
-            System.out.println("std: "+std);
-
-            //initialize the population
-            generatePop();
-            //if k > pop_size, fill the solution set with as many 1-itemsets as possible
-            fillSolutions();
-
-            List<Double> probRange = rouletteTopK(); //roulette probabilities for current discovered HUIs
+            System.out.println("std: " + std);
+            generatePop(); //initialize the population
+            fillSolutions(); //if k > pop_size, fill the solution set with the remaining 1-itemsets
+            List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
             for (int i = 0; i < iterations; i++) {
                 runRWS = true;
-                //update each particle in population
-                update();
+                update(); //update each particle in population
 
                 if (newS) {
-                   // System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
+                    // System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
                 }
 
                 //gBest update RWS
-                long start = System.nanoTime();
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteTopK();
@@ -221,15 +209,10 @@ public class TOPK_PSO {
                     int pos = rouletteSelect(probRange);
                     selectGBest(pos);
                 }
-                long end = System.nanoTime();
-                count += end - start;
 
-
-
-
-                if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) { //check each 100th iteration
-                    //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
-                    std = ((double) lowEst / highEst < 0.01) ? std/2 : std;
+                //Tighten std if mostly overestimates are made (only relevant when avgEstimates is active)
+                if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) {
+                    std = ((double) lowEst / highEst < 0.01) ? std / 2 : std;
                     //System.out.println("it: "+i + " std: "+std + " low: " + lowEst+ " high: "+highEst);
                 }
                 if (i % 1000 == 0) {
@@ -260,16 +243,15 @@ public class TOPK_PSO {
         pBest = new Particle[pop_size];
         for (int i = 0; i < pop_size; i++) {
             Particle p = new Particle(HTWUI.size());
-            if (!sizeOneItemsets.isEmpty()) {
+            if (!sizeOneItemsets.isEmpty()) { //initialize particle to next 1-itemset
                 p.X.set(sizeOneItemsets.pollLast().item);
-            } else {
+            } else { //RWS initialization
                 //k is the number of items to include in the particle
                 int k = (int) (Math.random() * maxTransactionLength) + 1;
                 //j is the current number of items that has been included
                 int j = 0;
                 while (j < k) {
-                    //select the item
-                    int pos = rouletteSelect(rouletteProbabilities);
+                    int pos = rouletteSelect(rouletteProbabilities); //select item
                     //if item is not previously selected, select it and increment j.
                     if (!p.X.get(HTWUI.get(pos).item)) {
                         p.X.set(HTWUI.get(pos).item);
@@ -277,32 +259,30 @@ public class TOPK_PSO {
                     }
                 }
             }
-            BitSet tidSet = pev_check(p); //transactions the particle occur
+            BitSet tidSet = pev_check(p);
             p.fitness = calcFitness(p, tidSet, -1);
             population[i] = p;
             pBest[i] = new Particle(p.X, p.fitness); //initialize pBest
             if (!explored.contains(p.X)) {
-                //check if HUI/CHUI
-                if (p.fitness > minSolutionFitness) {
+                if (p.fitness > minSolutionFitness) { //check if current top-k HUI
                     solutions.add(new Particle(p.X, p.fitness));
                 }
             }
             if (i == 0) {
-                gBest = new Particle(p.X, p.fitness);
+                gBest = new Particle(p.X, p.fitness); //initialize gBest
             } else {
                 if (p.fitness > gBest.fitness) {
                     gBest = new Particle(p.X, p.fitness); //update gBest
                 }
             }
-            BitSet clone = (BitSet) p.X.clone();
-            explored.add(clone); //set particle as explored
+            explored.add((BitSet) p.X.clone()); //set particle as explored
         }
     }
 
     /**
      * Fills the solution-set with 1-itemsets.
      * Repeats until there are k solutions or there are no more 1-itemsets
-     * Reason: increases the minSolutionFitness
+     * Reason: to increase the minSolutionFitness
      */
     private void fillSolutions() {
         while (solutions.getSize() < k && !sizeOneItemsets.isEmpty()) {
@@ -334,17 +314,15 @@ public class TOPK_PSO {
         p.estFitness = avgEstimate ? HTWUI.get(item1 - 1).avgUtil : HTWUI.get(item1 - 1).maxUtil;
         for (int i = p.X.nextSetBit(item1 + 1); i != -1; i = p.X.nextSetBit(i + 1)) {
             orgBitSet.and(HTWUI.get(i - 1).TIDS);
-            //the two items have common transactions
-            if (orgBitSet.cardinality() > 0) {
+            if (orgBitSet.cardinality() > 0) { //the two items have common transactions
                 copyBitSet = (BitSet) orgBitSet.clone();
                 p.estFitness += avgEstimate ? (HTWUI.get(i - 1).avgUtil) : (HTWUI.get(i - 1).maxUtil);
-            } else {
-                // no common transactions, remove the current item from the particle
+            } else { // no common transactions, remove the current item from the particle
                 orgBitSet = (BitSet) copyBitSet.clone();
                 p.X.clear(i);
             }
         }
-        return orgBitSet;
+        return orgBitSet; //the TidSet of the particle
     }
 
 
@@ -357,16 +335,13 @@ public class TOPK_PSO {
      * @return The fitness of the particle
      */
     private int calcFitness(Particle p, BitSet tidSet, int idx) {
-
         if (tidSet == null) {
             return 0; // particle does not occur in any transaction
         }
-
         //The particle only contains 1 item, return the fitness calculated during pre-processing
         if (p.X.cardinality() == 1) {
             return HTWUI.get(p.X.nextSetBit(0) - 1).totalUtil;
         }
-
         //estimate the fitness
         int support = tidSet.cardinality();
         int est = p.estFitness * support;
@@ -377,7 +352,6 @@ public class TOPK_PSO {
                 return 0;
             }
         }
-
         //calculate exact fitness
         int fitness = 0;
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
@@ -391,7 +365,6 @@ public class TOPK_PSO {
                 q++;
             }
         }
-
         //Update overestimates and underestimates
         if (est + buffer < fitness) {
             lowEst++;
@@ -408,20 +381,16 @@ public class TOPK_PSO {
     private void update() {
         for (int i = 0; i < pop_size; i++) {
             Particle p = population[i];
-            //different bits between pBest and current particle
-            List<Integer> diffList = bitDiff(pBest[i], p);
-            //change a random amount of these bits
-            changeParticle(diffList, p);
+            List<Integer> diffList = bitDiff(pBest[i], p); //different items between pBest and current particle
+            changeParticle(diffList, p); //change a random amount of these items in p
             //repeat for gBest
             diffList = bitDiff(gBest, p);
             changeParticle(diffList, p);
 
-            if (explored.contains(p.X)) {
-                //the particle is already explored, change one random bit
+            if (explored.contains(p.X)) { //the particle is already explored, change one random item
                 int rand = (int) (HTWUI.size() * Math.random());
                 Item item = HTWUI.get(rand);
-                if (item.twu < minSolutionFitness) {
-                    // item unpromising, always clear
+                if (item.twu < minSolutionFitness) { // item unpromising, always clear
                     p.X.clear(item.item);
                 } else {
                     p.X.flip(item.item);
@@ -430,8 +399,7 @@ public class TOPK_PSO {
 
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
-                //bitset before pev
-                BitSet copy1 = (BitSet) p.X.clone();
+                BitSet copy1 = (BitSet) p.X.clone(); //bitset before pev
                 BitSet tidSet = pev_check(p);
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
@@ -444,7 +412,7 @@ public class TOPK_PSO {
                             gBest = s;
                         }
                     }
-                    // particle is a top-k HUI
+                    // check if current top-k HUI
                     if (p.fitness > minSolutionFitness) {
                         solutions.add(new Particle(p.X, p.fitness));
                     }
@@ -456,7 +424,7 @@ public class TOPK_PSO {
     }
 
     /**
-     * Flips a random number of bits in current particle, only bits that are opposite to pBest/gBest are considered
+     * Flips a random number of bits in current particle, only bits that are in diffList are considered
      *
      * @param diffList bit differences between particle and pBest/gBest
      * @param p        Particle to change
@@ -469,11 +437,9 @@ public class TOPK_PSO {
                 int pos = (int) (diffList.size() * Math.random());
                 Item item = HTWUI.get(diffList.get(pos) - 1);
                 if (item.twu < minSolutionFitness) {
-                    //item unpromising, always clear
-                    p.X.clear(item.item);
+                    p.X.clear(item.item); //item unpromising, always clear
                 } else {
-                    //flip the bit of the selected item
-                    p.X.flip(item.item);
+                    p.X.flip(item.item); //flip the bit of the selected item
                 }
             }
         }
@@ -498,7 +464,7 @@ public class TOPK_PSO {
 
 
     /**
-     * Creates probability range for roulette wheel selection on items, based on TWU
+     * Creates probability range for roulette wheel selection on items, based on their TWU
      *
      * @return List of item probability ranges
      */
@@ -553,19 +519,19 @@ public class TOPK_PSO {
 
 
     /**
-     * creates probability range for roulette wheel selection on current top-k HUIs
+     * creates probability range for roulette wheel selection on current top-k HUIs, based on their fitness
      *
      * @return list of top-k HUIs probability ranges
      */
     private List<Double> rouletteTopK() {
+        List<Double> probRange = new ArrayList<>();
         double sum = 0;
-        List<Double> rouletteProbs = new ArrayList<>();
         for (Particle hui : solutions.getSol()) {
             sum += hui.fitness;
             double percent = sum / utilSum;
-            rouletteProbs.add(percent);
+            probRange.add(percent);
         }
-        return rouletteProbs;
+        return probRange;
     }
 
 
@@ -578,7 +544,7 @@ public class TOPK_PSO {
         String currentLine;
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
-            //1st DB-Scan: calculate TWU value for each item
+            //1st DB-Scan: calculate TWU and utility of each item
             while ((currentLine = data.readLine()) != null) {
                 String[] split = currentLine.split(":");
                 String[] items = split[0].split(" ");
@@ -587,11 +553,11 @@ public class TOPK_PSO {
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    //update twu
-                    Integer twu = (twuAndUtilMap.get(item) == null) ?
+                    //update item twu
+                    int twu = (twuAndUtilMap.get(item) == null) ?
                             transactionUtility : twuAndUtilMap.get(item).twu + transactionUtility;
-                    //update utility
-                    Integer currUtil = (twuAndUtilMap.get(item) == null) ?
+                    //update item utility
+                    int currUtil = (twuAndUtilMap.get(item) == null) ?
                             util : twuAndUtilMap.get(item).utility + util;
                     twuAndUtilMap.put(item, new TwuAndUtil(twu, currUtil));
                 }
@@ -607,7 +573,7 @@ public class TOPK_PSO {
 
         }
         Collections.sort(utils, Collections.reverseOrder()); //sort based on utility
-        minUtil = (k <= utils.size()) ? utils.get(k - 1) : 0; //set min utility
+        int minUtil = (k <= utils.size()) ? utils.get(k - 1) : 0; //set min utility
         System.out.println("minUtil: " + minUtil);
 
         //2nd DB-Scan: prune and initialize db
@@ -638,15 +604,15 @@ public class TOPK_PSO {
                             HTWUI.add(itemClass);
                         }
                         item = itemNames.get(item); //get the new name
-                        transaction.add(new Pair(item, util)); //rename the item
+                        transaction.add(new Pair(item, util)); //store in transaction with new name
                         Item itemClass = HTWUI.get(item - 1);
                         itemClass.TIDS.set(tid); //update the items' TidSet
-                        //update the largest local utility for this item
+                        //update the item's maximum utility
                         itemClass.maxUtil = (itemClass.maxUtil == 0) ? util : Math.max(itemClass.maxUtil, util);
                     }
                 }
                 if (!transaction.isEmpty()) {
-                    Collections.sort(transaction); //sort transaction according to item name
+                    Collections.sort(transaction); //sort transaction according to item name (faster fitness calc)
                     maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update longest transaction
                     database.add(transaction); //store revised transaction
                     tid++; //increment transaction id
@@ -714,6 +680,7 @@ public class TOPK_PSO {
                 + " ms");
         System.out.println(" Memory ~ " + maxMemory + " MB");
         System.out.println(" Discovered Utility: " + utilSum);
+        System.out.println(" MSF               : " + minSolutionFitness);
         System.out
                 .println("===================================================");
     }
