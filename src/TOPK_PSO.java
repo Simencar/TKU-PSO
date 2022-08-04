@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1000; //Top-K HUIs to discover
+    final int k = 500; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
 
@@ -163,8 +163,10 @@ public class TOPK_PSO {
     public void run() throws IOException {
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
-
+        long start = System.currentTimeMillis();
         init(); //initialize db from input file and prune
+        long end = System.currentTimeMillis();
+        System.out.println("time: " + (end - start));
 
         solutions = new Solutions(k);
 
@@ -187,7 +189,6 @@ public class TOPK_PSO {
         explored = new HashSet<>();
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
-            System.out.println("std: " + std);
             generatePop(); //initialize the population
             fillSolutions(); //if k > pop_size, fill the solution set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
@@ -212,7 +213,6 @@ public class TOPK_PSO {
                 //Tighten std if mostly overestimates are made (only relevant when avgEstimate is active)
                 if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) {
                     std = ((double) lowEst / highEst < 0.01) ? std / 2 : std;
-                    //System.out.println("it: "+i + " std: "+std + " low: " + lowEst+ " high: "+highEst);
                 }
                 if (i % 1000 == 0) {
                     System.out.println(i);
@@ -538,7 +538,6 @@ public class TOPK_PSO {
      */
     private void init() {
         Map<Integer, TwuAndUtil> twuAndUtilMap = new HashMap<>();
-
         String currentLine;
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
@@ -568,7 +567,6 @@ public class TOPK_PSO {
         ArrayList<Integer> utils = new ArrayList<>(twuAndUtilMap.size());
         for (int item : twuAndUtilMap.keySet()) {
             utils.add(twuAndUtilMap.get(item).utility);
-
         }
         Collections.sort(utils, Collections.reverseOrder()); //sort based on utility
         int minUtil = (k <= utils.size()) ? utils.get(k - 1) : 0; //set min utility
@@ -579,7 +577,7 @@ public class TOPK_PSO {
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(dataPath)))) {
             int tid = 0;
-            int name = 0;
+            int newName = 0;
             HashMap<Integer, Integer> itemNames = new HashMap<>();
             while ((currentLine = data.readLine()) != null) {
                 String[] split = currentLine.split(":");
@@ -594,10 +592,10 @@ public class TOPK_PSO {
 
                         //items are renamed from 1 to #1-HTWUI (faster bitset operations and lower memory usage)
                         if (!itemNames.containsKey(item)) {
-                            name++; //new item name
-                            itemNames.put(item, name);
-                            itemNamesRev.put(name, item);
-                            Item itemClass = new Item(name); //this obj stores different info for the item
+                            newName++; //new item name
+                            itemNames.put(item, newName);
+                            itemNamesRev.put(newName, item);
+                            Item itemClass = new Item(newName); //this obj stores different info for the item
                             itemClass.twu = twu; //store twu
                             itemClass.totalUtil = twuAndUtilMap.get(item).utility; //store utility
                             HTWUI.add(itemClass);
