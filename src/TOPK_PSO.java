@@ -26,7 +26,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "chess";
+    final String dataset = "kosarak";
     final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,8 +34,8 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 100; //Top-K HUIs to discover
-    final boolean avgEstimate = true;
+    final int k = 25; //Top-K HUIs to discover
+    final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
 
     //stats
@@ -95,7 +95,7 @@ public class TOPK_PSO {
 
     // this class represent a particle (the generated solutions)
     private static class Particle implements Comparable<Particle> {
-        BitSet X; // items contained in particle (encoding vector)
+        BitSet X; // itemset of particle (encoding vector)
         int fitness; // fitness/utility of particle
         int estFitness; // estimated fitness of particle
 
@@ -120,7 +120,7 @@ public class TOPK_PSO {
     //class for storing the solutions
     private class Solutions {
         final int size;
-        TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster iteration in selectGbest()
+        TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster Roulette wheel sel.
         //TreeSet cannot contain duplicate elements. The compareTo of Particle must therefore not return 0 for any case
         //as it will not be able to store solutions with identical fitness
 
@@ -156,7 +156,7 @@ public class TOPK_PSO {
     }
 
     /**
-     * Call this method to run the algorithm. File paths and algorithm parameters must be set in top of this class
+     * Call this method to run the algorithm. File paths and algorithm parameters must be set in top of class
      *
      * @throws IOException
      */
@@ -388,9 +388,9 @@ public class TOPK_PSO {
 
             if (explored.contains(p.X)) { //the particle is already explored, change one random item
                 int rand = (int) (HTWUI.size() * Math.random());
-                Item item = HTWUI.get(rand);
-                if (item.twu < minSolutionFitness) { // item unpromising, always clear
-                    p.X.clear(item.item);
+                Item item = HTWUI.get(rand); //the selected item
+                if (item.twu < minSolutionFitness) {
+                    p.X.clear(item.item); // item unpromising, always clear
                 } else {
                     p.X.flip(item.item);
                 }
@@ -430,8 +430,7 @@ public class TOPK_PSO {
      */
     private void changeParticle(List<Integer> diffList, Particle p) {
         if (diffList.size() > 0) {
-            //number of items to change
-            int num = (int) (diffList.size() * Math.random() + 1);
+            int num = (int) (diffList.size() * Math.random() + 1); //number of items to change
             for (int i = 0; i < num; i++) {
                 int pos = (int) (diffList.size() * Math.random());
                 Item item = HTWUI.get(diffList.get(pos) - 1);
@@ -469,11 +468,11 @@ public class TOPK_PSO {
      */
     private List<Double> rouletteTWU() {
         List<Double> probRange = new ArrayList<>();
-        double tempSum = 0;
+        double sum = 0;
         //Set probabilities based on TWU-proportion
         for (int i = 0; i < HTWUI.size(); i++) {
-            tempSum += HTWUI.get(i).twu;
-            double percent = tempSum / twuSum;
+            sum += HTWUI.get(i).twu;
+            double percent = sum / twuSum;
             probRange.add(percent);
         }
         return probRange;
@@ -573,6 +572,7 @@ public class TOPK_PSO {
         }
         Collections.sort(utils, Collections.reverseOrder()); //sort based on utility
         int minUtil = (k <= utils.size()) ? utils.get(k - 1) : 0; //set min utility
+
         System.out.println("minUtil: " + minUtil);
 
         //2nd DB-Scan: prune and initialize db
