@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500; //Top-K HUIs to discover
+    final int k = 2; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
 
@@ -163,11 +163,8 @@ public class TOPK_PSO {
     public void run() throws IOException {
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
-        long start = System.currentTimeMillis();
-        init(); //initialize db from input file and prune
-        long end = System.currentTimeMillis();
-        System.out.println("time: " + (end - start));
 
+        init(); //initialize db from input file and prune
         solutions = new Solutions(k);
 
         System.out.println("TWU_SIZE: " + HTWUI.size());
@@ -482,7 +479,7 @@ public class TOPK_PSO {
      * Roulette wheel selection. Selects a winner based on given probability range and a generated random number
      *
      * @param probRange list of probability ranges
-     * @return
+     * @return Index of winner in list
      */
     private int rouletteSelect(List<Double> probRange) { //TODO: make binary search
         double rand = Math.random();
@@ -676,8 +673,8 @@ public class TOPK_PSO {
         System.out.println(" Total time ~ " + (endTimestamp - startTimestamp)
                 + " ms");
         System.out.println(" Memory ~ " + maxMemory + " MB");
-        System.out.println(" Discovered Utility: " + utilSum);
-        System.out.println(" MSF               : " + minSolutionFitness);
+        System.out.println(" Discovered Utility   : " + utilSum);
+        System.out.println(" Min Solution Fitness : " + minSolutionFitness);
         System.out
                 .println("===================================================");
     }
