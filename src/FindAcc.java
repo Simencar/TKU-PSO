@@ -4,12 +4,16 @@ import java.io.InputStreamReader;
 import java.util.HashSet;
 import java.util.TreeSet;
 
-
+/**
+ * Compares discovered itemsets with the correct top-k itemsets of a non-heuristic algorithm
+ */
 public class FindAcc {
 
     public static void main(String[] args) {
-        String dataset = "mushroom2000";
+        String dataset = "chainstore1000";
+        //the solution file with correct top-k patterns (output file of non-heuristic algorithm)
         String res = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
+        //output file of heuristic algorithm
         String out = "D:\\Documents\\Skole\\Master\\Work\\out.txt";
         int solutions = 0;
         int found = 0;
