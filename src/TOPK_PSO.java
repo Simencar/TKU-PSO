@@ -37,7 +37,6 @@ public class TOPK_PSO {
     final int k = 2; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
-
     //stats
     double maxMemory = 0; // the maximum memory usage
     long startTimestamp = 0; // the time the algorithm started
@@ -93,7 +92,7 @@ public class TOPK_PSO {
         }
     }
 
-    // this class represent a particle (the generated solutions)
+    // this class represent a particle (a generated solution)
     private static class Particle implements Comparable<Particle> {
         BitSet X; // itemset of particle (encoding vector)
         int fitness; // fitness/utility of particle
@@ -117,7 +116,7 @@ public class TOPK_PSO {
         }
     }
 
-    //class for storing the solutions
+    //class for maintaining the top-k solutions
     private class Solutions {
         final int size;
         TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster Roulette wheel sel.
