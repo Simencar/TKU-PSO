@@ -26,15 +26,15 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "chainstore";
-    final String dataPath = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
-    final String resultPath = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
+    final String dataset = "connect";
+    final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
+    final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
 
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 2; //Top-K HUIs to discover
+    final int k = 100; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -190,7 +190,7 @@ public class TOPK_PSO {
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
             for (int i = 0; i < iterations; i++) {
                 runRWS = true;
-                update(); //update each particle in population
+                update(); //update and evaluate each particle in population
 
                 if (newS) {
                     // System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
@@ -277,7 +277,7 @@ public class TOPK_PSO {
     /**
      * Fills the solution-set with 1-itemsets.
      * Repeats until there are k solutions or there are no more 1-itemsets
-     * Reason: to increase the minSolutionFitness
+     * Reason: to increase the minSolutionFitness quickly
      */
     private void fillSolutions() {
         while (solutions.getSize() < k && !sizeOneItemsets.isEmpty()) {
@@ -297,7 +297,7 @@ public class TOPK_PSO {
      * it also calculates the avg/max fitness estimate and returns the TidSet of the particle.
      *
      * @param p The particle
-     * @return orgBitSet: The transactions the itemset of the particle occur (TidSet)
+     * @return orgBitSet: The transactions the particle occur (TidSet)
      */
     private BitSet pev_check(Particle p) {
         int item1 = p.X.nextSetBit(0);
@@ -428,8 +428,10 @@ public class TOPK_PSO {
         if (diffList.size() > 0) {
             int num = (int) (diffList.size() * Math.random() + 1); //number of items to change
             for (int i = 0; i < num; i++) {
+
                 int pos = (int) (diffList.size() * Math.random());
-                Item item = HTWUI.get(diffList.get(pos) - 1);
+                //select the item and remove it from diffList
+                Item item = HTWUI.get(diffList.remove(pos) - 1);
                 if (item.twu < minSolutionFitness) {
                     p.X.clear(item.item); //item unpromising, always clear
                 } else {
@@ -536,7 +538,7 @@ public class TOPK_PSO {
         Map<Integer, TwuAndUtil> twuAndUtilMap = new HashMap<>();
         String currentLine;
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(dataPath)))) {
+                new FileInputStream(input)))) {
             //1st DB-Scan: calculate TWU and utility of each item
             while ((currentLine = data.readLine()) != null) {
                 String[] split = currentLine.split(":");
@@ -571,7 +573,7 @@ public class TOPK_PSO {
 
         //2nd DB-Scan: prune and initialize db
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(dataPath)))) {
+                new FileInputStream(input)))) {
             int tid = 0;
             int newName = 0;
             HashMap<Integer, Integer> itemNames = new HashMap<>();
@@ -628,7 +630,7 @@ public class TOPK_PSO {
             sb.append(p.fitness);
             sb.append(System.lineSeparator());
         }
-        BufferedWriter w = new BufferedWriter(new FileWriter(resultPath));
+        BufferedWriter w = new BufferedWriter(new FileWriter(output));
         w.write(sb.toString());
         w.newLine();
         w.close();
