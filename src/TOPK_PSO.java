@@ -28,7 +28,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "connect";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -375,12 +375,8 @@ public class TOPK_PSO {
         //calculate exact fitness
         int fitness = 0;
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
-            //int q = 0; //current index in transaction
+            int q = 0; //current index in transaction
             int item = p.X.nextSetBit(0); //current item we are looking for
-
-            int mid = database.get(i).get(database.get(i).size() / 2).item;
-            int q = (item < mid) ? 0 : database.get(i).size() / 2;
-
             while (item != -1) {
                 if (database.get(i).get(q).item == item) { //found item in transaction
                     fitness += database.get(i).get(q).utility;
