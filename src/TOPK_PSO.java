@@ -331,20 +331,20 @@ public class TOPK_PSO {
             return null;
         }
         p.estFitness = avgEstimate ? HTWUI.get(item - 1).avgUtil : HTWUI.get(item - 1).maxUtil;
-        if(p.X.cardinality() == 1) { //avoids bitset copies for 1-itemsets
-            return HTWUI.get(item -1).TIDS;
+        if (p.X.cardinality() == 1) {
+            return HTWUI.get(item - 1).TIDS; //avoids bitset copies for 1-itemsets
         }
         BitSet tidSet = (BitSet) HTWUI.get(item - 1).TIDS.clone(); //initial tidSet
         for (int i = p.X.nextSetBit(item + 1); i != -1; i = p.X.nextSetBit(i + 1)) {
             if (tidSet.intersects(HTWUI.get(i - 1).TIDS)) { //the item has common transactions with current tidSet
                 tidSet.and(HTWUI.get(i - 1).TIDS); //update tidSet
-                //append avg- or max util of the item to the estimated fitness
+                //append avg- or max util of the item to the fitness estimate
                 p.estFitness += avgEstimate ? (HTWUI.get(i - 1).avgUtil) : (HTWUI.get(i - 1).maxUtil);
-            } else { // no common transactions, remove the item from the particle
-                p.X.clear(i);
+            } else {
+                p.X.clear(i); // no common transactions, remove the item from the particle
             }
         }
-        return tidSet; //the tidSet of updated particle
+        return tidSet; //the tidSet of the pev-checked particle
     }
 
 
