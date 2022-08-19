@@ -24,11 +24,12 @@ public class TOPK_PSO {
     private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
     private long twuSum = 0; //the combined twu of all HTWUI (for faster RWS)
     long count = 0;
+    long count2 = 0;
     //ArrayList<Integer> it = new ArrayList<>();
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "connect";
+    final String dataset = "retail";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -36,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500; //Top-K HUIs to discover
+    final int k = 1; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -243,7 +244,8 @@ public class TOPK_PSO {
         endTimestamp = System.currentTimeMillis();
         checkMemory();
         writeOut();
-        System.out.println("skipped: " + count);
+        System.out.println("skipped:  " + count);
+        System.out.println("skipped2: " + count2);
         System.out.println("explored: " + explored.size());
         System.out.println("over    : " + highEst);
         System.out.println("under   : " + lowEst);
@@ -324,24 +326,25 @@ public class TOPK_PSO {
      * @return orgBitSet: The transactions the particle occur (TidSet)
      */
     private BitSet pev_check(Particle p) {
-        int item1 = p.X.nextSetBit(0);
-        if (item1 == -1) {
+        int item = p.X.nextSetBit(0);
+        if (item == -1) {
             return null;
         }
-        BitSet orgBitSet = (BitSet) HTWUI.get(item1 - 1).TIDS.clone();
-        BitSet copyBitSet = (BitSet) orgBitSet.clone();
-        p.estFitness = avgEstimate ? HTWUI.get(item1 - 1).avgUtil : HTWUI.get(item1 - 1).maxUtil;
-        for (int i = p.X.nextSetBit(item1 + 1); i != -1; i = p.X.nextSetBit(i + 1)) {
-            orgBitSet.and(HTWUI.get(i - 1).TIDS);
-            if (orgBitSet.cardinality() > 0) { //the two items have common transactions
-                copyBitSet = (BitSet) orgBitSet.clone();
+        p.estFitness = avgEstimate ? HTWUI.get(item - 1).avgUtil : HTWUI.get(item - 1).maxUtil;
+        if(p.X.cardinality() == 1) { //avoids bitset copies for 1-itemsets
+            return HTWUI.get(item -1).TIDS;
+        }
+        BitSet tidSet = (BitSet) HTWUI.get(item - 1).TIDS.clone(); //initial tidSet
+        for (int i = p.X.nextSetBit(item + 1); i != -1; i = p.X.nextSetBit(i + 1)) {
+            if (tidSet.intersects(HTWUI.get(i - 1).TIDS)) { //the item has common transactions with current tidSet
+                tidSet.and(HTWUI.get(i - 1).TIDS); //update tidSet
+                //append avg- or max util of the item to the estimated fitness
                 p.estFitness += avgEstimate ? (HTWUI.get(i - 1).avgUtil) : (HTWUI.get(i - 1).maxUtil);
-            } else { // no common transactions, remove the current item from the particle
-                orgBitSet = (BitSet) copyBitSet.clone();
+            } else { // no common transactions, remove the item from the particle
                 p.X.clear(i);
             }
         }
-        return orgBitSet; //the TidSet of the particle
+        return tidSet; //the tidSet of updated particle
     }
 
 
