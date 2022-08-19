@@ -4,6 +4,8 @@ import java.util.*;
 public class TOPK_PSO {
 
     private List<List<Pair>> database = new ArrayList<>(); //the database after pruning
+
+
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
     private Particle[] pBest; //list of personal fittest descendant of each particle
     private Particle[] population; //population of current particles
@@ -26,7 +28,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "connect";
+    final String dataset = "chainstore";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,7 +36,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 100; //Top-K HUIs to discover
+    final int k = 500; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -55,6 +57,10 @@ public class TOPK_PSO {
 
         public int compareTo(Pair o) {
             return (this.item <= o.item) ? -1 : 1;
+        }
+
+        public int getUtility() {
+            return utility;
         }
     }
 
@@ -171,7 +177,7 @@ public class TOPK_PSO {
         checkMemory();
         System.out.println("mem: " + maxMemory);
         System.out.println("mtl: " + maxTransactionLength);
-        System.out.println("trans: " + database.size());
+        //System.out.println("trans: " + database.size());
 
         sizeOneItemsets = new TreeSet<>();
         //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
@@ -181,7 +187,25 @@ public class TOPK_PSO {
             std += item.maxUtil - item.avgUtil;
             sizeOneItemsets.add(item);
             twuSum += item.twu;
+
         }
+
+        /*
+        long start = System.nanoTime();
+        for(int i = 0; i < database.size(); i++) {
+            int[] trans = new int[max+1];
+            for(int j = 0; j < database.get(i).size(); j++) {
+                Pair p = database.get(i).get(j);
+                trans[p.item] = p.utility;
+            }
+            db2.add(trans);
+        }
+        long end = System.nanoTime();
+        count += end-start;
+
+         */
+
+
         explored = new HashSet<>();
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
@@ -347,11 +371,16 @@ public class TOPK_PSO {
                 return 0;
             }
         }
+
         //calculate exact fitness
         int fitness = 0;
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
-            int q = 0; //current index in transaction
+            //int q = 0; //current index in transaction
             int item = p.X.nextSetBit(0); //current item we are looking for
+
+            int mid = database.get(i).get(database.get(i).size() / 2).item;
+            int q = (item < mid) ? 0 : database.get(i).size() / 2;
+
             while (item != -1) {
                 if (database.get(i).get(q).item == item) { //found item in transaction
                     fitness += database.get(i).get(q).utility;
@@ -428,7 +457,6 @@ public class TOPK_PSO {
         if (diffList.size() > 0) {
             int num = (int) (diffList.size() * Math.random() + 1); //number of items to change
             for (int i = 0; i < num; i++) {
-
                 int pos = (int) (diffList.size() * Math.random());
                 //select the item and remove it from diffList
                 Item item = HTWUI.get(diffList.remove(pos) - 1);
@@ -549,11 +577,12 @@ public class TOPK_PSO {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
                     //update item twu
-                    int twu = (twuAndUtilMap.get(item) == null) ?
-                            transactionUtility : twuAndUtilMap.get(item).twu + transactionUtility;
+                    TwuAndUtil tau = twuAndUtilMap.get(item);
+                    int twu = (tau == null) ?
+                            transactionUtility : tau.twu + transactionUtility;
                     //update item utility
-                    int currUtil = (twuAndUtilMap.get(item) == null) ?
-                            util : twuAndUtilMap.get(item).utility + util;
+                    int currUtil = (tau == null) ?
+                            util : tau.utility + util;
                     twuAndUtilMap.put(item, new TwuAndUtil(twu, currUtil));
                 }
             }
@@ -562,48 +591,53 @@ public class TOPK_PSO {
         }
 
         //Set minUtil to utility of kth fittest 1-itemset
-        ArrayList<Integer> utils = new ArrayList<>(twuAndUtilMap.size());
+        ArrayList<Pair> utils = new ArrayList<>(twuAndUtilMap.size());
         for (int item : twuAndUtilMap.keySet()) {
-            utils.add(twuAndUtilMap.get(item).utility);
+            utils.add(new Pair(item, twuAndUtilMap.get(item).utility));
         }
-        Collections.sort(utils, Collections.reverseOrder()); //sort based on utility
-        int minUtil = (k <= utils.size()) ? utils.get(k - 1) : 0; //set min utility
+        Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
+        int minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0; //set min utility
 
         System.out.println("minUtil: " + minUtil);
+
+        //rename items from 1 to #1-HTWUI, items with high utility has name closer to 1
+        //--> reduces memory usage, faster fit. calc, and better PEV-checks
+        HashMap<Integer, Integer> itemNames = new HashMap<>();
+        int name = 1;
+        for (Pair p : utils) {
+            TwuAndUtil tau = twuAndUtilMap.get(p.item);
+            if (tau.twu >= minUtil) { //check if the item is HTWUI
+                itemNames.put(p.item, name);
+                itemNamesRev.put(name, p.item);
+                //initialize some needed info for the item
+                Item item = new Item(name);
+                item.twu = tau.twu;
+                item.totalUtil = tau.utility;
+                HTWUI.add(item);
+                name++;
+            }
+        }
 
         //2nd DB-Scan: prune and initialize db
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
                 new FileInputStream(input)))) {
             int tid = 0;
-            int newName = 0;
-            HashMap<Integer, Integer> itemNames = new HashMap<>();
             while ((currentLine = data.readLine()) != null) {
                 String[] split = currentLine.split(":");
                 String[] items = split[0].split(" ");
                 String[] utilities = split[2].split(" ");
                 List<Pair> transaction = new ArrayList<>();
+
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    int twu = twuAndUtilMap.get(item).twu;
-                    if (twu >= minUtil) {
-
-                        //items are renamed from 1 to #1-HTWUI (faster bitset operations and lower memory usage)
-                        if (!itemNames.containsKey(item)) {
-                            newName++; //new item name
-                            itemNames.put(item, newName);
-                            itemNamesRev.put(newName, item);
-                            Item itemClass = new Item(newName); //this obj stores different info for the item
-                            itemClass.twu = twu; //store twu
-                            itemClass.totalUtil = twuAndUtilMap.get(item).utility; //store utility
-                            HTWUI.add(itemClass);
-                        }
-                        item = itemNames.get(item); //get the new name
+                    if (itemNames.containsKey(item)) {
+                        item = itemNames.get(item); //get new item-name
                         transaction.add(new Pair(item, util)); //store in transaction with new name
-                        Item itemClass = HTWUI.get(item - 1);
-                        itemClass.TIDS.set(tid); //update the items' TidSet
+                        Item itemObj = HTWUI.get(item - 1);
+                        itemObj.TIDS.set(tid); //update the item's TidSet
                         //update the item's maximum utility
-                        itemClass.maxUtil = (itemClass.maxUtil == 0) ? util : Math.max(itemClass.maxUtil, util);
+                        itemObj.maxUtil = (itemObj.maxUtil == 0) ? util : Math.max(itemObj.maxUtil, util);
                     }
                 }
                 if (!transaction.isEmpty()) {
