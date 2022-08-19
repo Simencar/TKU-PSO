@@ -29,7 +29,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "retail";
+    final String dataset = "mushroom";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -37,7 +37,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1; //Top-K HUIs to discover
+    final int k = 3000; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -171,55 +171,33 @@ public class TOPK_PSO {
         startTimestamp = System.currentTimeMillis();
 
         init(); //initialize db from input file and prune
-        solutions = new Solutions(k);
+        solutions = new Solutions(k); //class for maintaining the top-k HUIs
 
         System.out.println("TWU_SIZE: " + HTWUI.size());
-
         checkMemory();
         System.out.println("mem: " + maxMemory);
-        System.out.println("mtl: " + maxTransactionLength);
-        //System.out.println("trans: " + database.size());
+
 
         sizeOneItemsets = new TreeSet<>();
-        //calculate average utility of each item and find the standard deviation between avgUtil & maxUtil
-        std = 0; // the standard deviation
+        //calculate average utility of each item and find the deviation between avgUtil & maxUtil
+        std = 0; // the deviation
         for (Item item : HTWUI) {
             item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality());
             std += item.maxUtil - item.avgUtil;
             sizeOneItemsets.add(item);
             twuSum += item.twu;
-
         }
-
-        /*
-        long start = System.nanoTime();
-        for(int i = 0; i < database.size(); i++) {
-            int[] trans = new int[max+1];
-            for(int j = 0; j < database.get(i).size(); j++) {
-                Pair p = database.get(i).get(j);
-                trans[p.item] = p.utility;
-            }
-            db2.add(trans);
-        }
-        long end = System.nanoTime();
-        count += end-start;
-
-         */
-
-
         explored = new HashSet<>();
+
         if (!HTWUI.isEmpty()) {
             std = std / HTWUI.size();
             generatePop(); //initialize the population
-            fillSolutions(); //if k > pop_size, fill the solution set with the remaining 1-itemsets
+            fillSolutions(); //if k > pop_size, fill the solution-set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
+
             for (int i = 0; i < iterations; i++) {
                 runRWS = true;
                 update(); //update and evaluate each particle in population
-
-                if (newS) {
-                    // System.out.println("iteration: " + i + "     MinFit: " + minSolutionFitness);
-                }
 
                 //gBest update RWS
                 if (i > 1 && runRWS) {
@@ -422,17 +400,17 @@ public class TOPK_PSO {
 
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
-                BitSet copy1 = (BitSet) p.X.clone(); //bitset before pev
+                BitSet copy = (BitSet) p.X.clone(); //bitset before pev
                 BitSet tidSet = pev_check(p);
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
                     p.fitness = calcFitness(p, tidSet, i);
                     //update pBest and gBest
                     if (p.fitness > pBest[i].fitness) {
-                        Particle s = new Particle(p.X, p.fitness);
-                        pBest[i] = s;
+                        Particle pCopy = new Particle(p.X, p.fitness);
+                        pBest[i] = pCopy;
                         if (p.fitness > gBest.fitness) {
-                            gBest = s;
+                            gBest = pCopy;
                         }
                     }
                     // check if current top-k HUI
@@ -441,7 +419,7 @@ public class TOPK_PSO {
                     }
                     explored.add((BitSet) p.X.clone()); //set current particle as explored
                 }
-                explored.add(copy1); //set particle before PEV-check as explored
+                explored.add(copy); //set particle before PEV-check as explored
             }
         }
     }

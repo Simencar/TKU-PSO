@@ -5,25 +5,24 @@ import java.util.HashSet;
 import java.util.TreeSet;
 
 /**
- * Compares discovered itemsets with the correct top-k itemsets of a non-heuristic algorithm
+ * Compares the itemsets of two output files and prints the accuracy
  */
 public class FindAcc {
 
     public static void main(String[] args) {
-        String dataset = "retail1000";
-        //the solution file with correct top-k patterns (output file of non-heuristic algorithm)
-        String res = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
-        //output file of heuristic algorithm
-        String out = "D:\\Documents\\Skole\\Master\\Work\\out.txt";
+        String dataset = "mushroom3000";
+        //The solution file with the correct top-k patterns (output file of non-heuristic algorithm)
+        String sols = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
+        //The file to validate the accuracy of (output file of heuristic algorithm)
+        String res = "D:\\Documents\\Skole\\Master\\Work\\out.txt";
         int solutions = 0;
         int found = 0;
 
         HashSet<TreeSet<Integer>> sol = new HashSet<>();
         HashSet<TreeSet<Integer>> dup = new HashSet<>();
 
-
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(res)))) {
+                new FileInputStream(sols)))) {
             String currentLine;
             while ((currentLine = data.readLine()) != null) {
 
@@ -36,16 +35,14 @@ public class FindAcc {
                 sol.add(itemset);
                 if(!itemset.isEmpty()) {
                     solutions++;
-
                 }
-
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(out)))) {
+                new FileInputStream(res)))) {
             String currentLine;
             while ((currentLine = data.readLine()) != null) {
                 String [] split = currentLine.split("#");
