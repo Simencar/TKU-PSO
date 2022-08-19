@@ -4,8 +4,6 @@ import java.util.*;
 public class TOPK_PSO {
 
     private List<List<Pair>> database = new ArrayList<>(); //the database after pruning
-
-
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
     private Particle[] pBest; //list of personal fittest descendant of each particle
     private Particle[] population; //population of current particles
@@ -13,7 +11,7 @@ public class TOPK_PSO {
     private ArrayList<Item> HTWUI = new ArrayList<>(); //List of all HTWUI
     private HashSet<BitSet> explored; //set of current explored particles/itemsets
     private HashMap<Integer, Integer> itemNamesRev = new HashMap<>(); //maps new item names to original
-    private int std; //standard deviation between maxUtils and avgUtils
+    private int std; //mean deviation between maxUtils and avgUtils
     private int lowEst = 0; //number of fitness underestimates
     private int highEst = 0; //number of fitness overestimates
     private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
@@ -190,7 +188,7 @@ public class TOPK_PSO {
         explored = new HashSet<>();
 
         if (!HTWUI.isEmpty()) {
-            std = std / HTWUI.size();
+            std = std / HTWUI.size(); //calc mean deviation
             generatePop(); //initialize the population
             fillSolutions(); //if k > pop_size, fill the solution-set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
@@ -614,7 +612,7 @@ public class TOPK_PSO {
                         Item itemObj = HTWUI.get(item - 1);
                         itemObj.TIDS.set(tid); //update the item's TidSet
                         //update the item's maximum utility
-                        itemObj.maxUtil = (itemObj.maxUtil == 0) ? util : Math.max(itemObj.maxUtil, util);
+                        itemObj.maxUtil = Math.max(itemObj.maxUtil, util);
                     }
                 }
                 if (!transaction.isEmpty()) {
