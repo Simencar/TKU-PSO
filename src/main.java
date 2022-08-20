@@ -7,6 +7,4 @@ public class main {
         alg.run();
         alg.printStats();
     }
-
-
 }

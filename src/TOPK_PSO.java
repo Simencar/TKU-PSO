@@ -2,7 +2,6 @@ import java.io.*;
 import java.util.*;
 
 public class TOPK_PSO {
-
     private List<List<Pair>> database = new ArrayList<>(); //the database after pruning
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
     private Particle[] pBest; //list of personal fittest descendant of each particle
@@ -27,7 +26,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "mushroom";
+    final String dataset = "kosarak";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -35,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 3000; //Top-K HUIs to discover
+    final int k = 10; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -170,11 +169,9 @@ public class TOPK_PSO {
 
         init(); //initialize db from input file and prune
         solutions = new Solutions(k); //class for maintaining the top-k HUIs
-
-        System.out.println("TWU_SIZE: " + HTWUI.size());
         checkMemory();
+        System.out.println("TWU_SIZE: " + HTWUI.size());
         System.out.println("mem: " + maxMemory);
-
 
         sizeOneItemsets = new TreeSet<>();
         //calculate average utility of each item and find the deviation between avgUtil & maxUtil
@@ -185,10 +182,10 @@ public class TOPK_PSO {
             sizeOneItemsets.add(item);
             twuSum += item.twu;
         }
-        explored = new HashSet<>();
 
+        explored = new HashSet<>();
         if (!HTWUI.isEmpty()) {
-            std = std / HTWUI.size(); //calc mean deviation
+            std = std / HTWUI.size(); // mean deviation
             generatePop(); //initialize the population
             fillSolutions(); //if k > pop_size, fill the solution-set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
@@ -340,6 +337,7 @@ public class TOPK_PSO {
         if (p.X.cardinality() == 1) {
             return HTWUI.get(p.X.nextSetBit(0) - 1).totalUtil;
         }
+
         //estimate the fitness
         int support = tidSet.cardinality();
         int est = p.estFitness * support;
@@ -364,6 +362,7 @@ public class TOPK_PSO {
                 q++;
             }
         }
+
         //Update overestimates and underestimates
         if (est + buffer < fitness) {
             lowEst++;
@@ -461,7 +460,6 @@ public class TOPK_PSO {
         return diffList;
     }
 
-
     /**
      * Creates probability range for roulette wheel selection on items, based on their TWU
      *
@@ -471,8 +469,8 @@ public class TOPK_PSO {
         List<Double> probRange = new ArrayList<>();
         double sum = 0;
         //Set probabilities based on TWU-proportion
-        for (int i = 0; i < HTWUI.size(); i++) {
-            sum += HTWUI.get(i).twu;
+        for (Item item : HTWUI) {
+            sum += item.twu;
             double percent = sum / twuSum;
             probRange.add(percent);
         }
@@ -570,9 +568,8 @@ public class TOPK_PSO {
         for (int item : twuAndUtilMap.keySet()) {
             utils.add(new Pair(item, twuAndUtilMap.get(item).utility));
         }
-        Collections.sort(utils, Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
+        utils.sort(Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
         int minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0; //set min utility
-
         System.out.println("minUtil: " + minUtil);
 
         //rename items from 1 to #1-HTWUI, items with high utility has name closer to 1
@@ -602,7 +599,6 @@ public class TOPK_PSO {
                 String[] items = split[0].split(" ");
                 String[] utilities = split[2].split(" ");
                 List<Pair> transaction = new ArrayList<>();
-
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
