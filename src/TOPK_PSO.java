@@ -2,7 +2,7 @@ import java.io.*;
 import java.util.*;
 
 public class TOPK_PSO {
-    private List<List<Pair>> database = new ArrayList<>(); //the database after pruning
+    List<Pair[]> database = new ArrayList<>(); //the database after pruning
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
     private Particle[] pBest; //list of personal fittest descendant of each particle
     private Particle[] population; //population of current particles
@@ -29,12 +29,12 @@ public class TOPK_PSO {
     final String dataset = "kosarak";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
-    final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
+    //final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
 
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 10; //Top-K HUIs to discover
+    final int k = 200; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -167,9 +167,13 @@ public class TOPK_PSO {
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
 
+
         init(); //initialize db from input file and prune
+
         solutions = new Solutions(k); //class for maintaining the top-k HUIs
+
         checkMemory();
+
         System.out.println("TWU_SIZE: " + HTWUI.size());
         System.out.println("mem: " + maxMemory);
 
@@ -184,7 +188,7 @@ public class TOPK_PSO {
         }
 
         explored = new HashSet<>();
-        if (!HTWUI.isEmpty()) {
+        if (HTWUI.size() != 0) {
             std = std / HTWUI.size(); // mean deviation
             generatePop(); //initialize the population
             fillSolutions(); //if k > pop_size, fill the solution-set with the remaining 1-itemsets
@@ -351,17 +355,29 @@ public class TOPK_PSO {
 
         //calculate exact fitness
         int fitness = 0;
+//        for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
+//            int q = 0; //current index in transaction
+//            int item = p.X.nextSetBit(0); //current item we are looking for
+//            while (item != -1) {
+//                if (database.get(i).get(q).item == item) { //found item in transaction
+//                    fitness += database.get(i).get(q).utility;
+//                    item = p.X.nextSetBit(item + 1); //select next item in the itemset
+//                }
+//                q++;
+//            }
+//        }
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
             int q = 0; //current index in transaction
             int item = p.X.nextSetBit(0); //current item we are looking for
             while (item != -1) {
-                if (database.get(i).get(q).item == item) { //found item in transaction
-                    fitness += database.get(i).get(q).utility;
+                if (database.get(i)[q].item == item) { //found item in transaction
+                    fitness += database.get(i)[q].utility;
                     item = p.X.nextSetBit(item + 1); //select next item in the itemset
                 }
                 q++;
             }
         }
+
 
         //Update overestimates and underestimates
         if (est + buffer < fitness) {
@@ -535,13 +551,12 @@ public class TOPK_PSO {
     /**
      * Reads the input file, prunes unpromising items and initializes the database matrix.
      */
-    private void init() {
-        Map<Integer, TwuAndUtil> twuAndUtilMap = new HashMap<>();
+    private void init() throws IOException {
         String currentLine;
-        try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(input)))) {
-            //1st DB-Scan: calculate TWU and utility of each item
-            while ((currentLine = data.readLine()) != null) {
+        Map<Integer, TwuAndUtil> twuAndUtilMap = new HashMap<>();
+        //1st DB-Scan: calculate TWU and utility of each item
+        try (BufferedReader reader = new BufferedReader(new FileReader(input))) {
+            while ((currentLine = reader.readLine()) != null) {
                 String[] split = currentLine.split(":");
                 String[] items = split[0].split(" ");
                 String[] utilities = split[2].split(" ");
@@ -559,8 +574,6 @@ public class TOPK_PSO {
                     twuAndUtilMap.put(item, new TwuAndUtil(twu, currUtil));
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
 
         //Set minUtil to utility of kth fittest 1-itemset
@@ -574,12 +587,12 @@ public class TOPK_PSO {
 
         //rename items from 1 to #1-HTWUI, items with high utility has name closer to 1
         //--> reduces memory usage, faster fit. calc, and better PEV-checks
-        HashMap<Integer, Integer> itemNames = new HashMap<>();
+        int[] itemNames = new int[utils.size() + 1];
         int name = 1;
         for (Pair p : utils) {
             TwuAndUtil tau = twuAndUtilMap.get(p.item);
             if (tau.twu >= minUtil) { //check if the item is HTWUI
-                itemNames.put(p.item, name);
+                itemNames[p.item] = name; // faster than hashmap in 2nd DB-scan below
                 itemNamesRev.put(name, p.item);
                 //initialize some needed info for the item
                 Item item = new Item(name);
@@ -590,11 +603,11 @@ public class TOPK_PSO {
             }
         }
 
-        //2nd DB-Scan: prune and initialize db
-        try (BufferedReader data = new BufferedReader(new InputStreamReader(
-                new FileInputStream(input)))) {
+        long s = System.nanoTime();
+        //2nd DB-scan: prune and initialize db
+        try (BufferedReader reader = new BufferedReader(new FileReader(input))) {
             int tid = 0;
-            while ((currentLine = data.readLine()) != null) {
+            while ((currentLine = reader.readLine()) != null) {
                 String[] split = currentLine.split(":");
                 String[] items = split[0].split(" ");
                 String[] utilities = split[2].split(" ");
@@ -602,25 +615,27 @@ public class TOPK_PSO {
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    if (itemNames.containsKey(item)) {
-                        item = itemNames.get(item); //get new item-name
+                    if (itemNames[item] != 0) { //the item is HTWUI
+                        item = itemNames[item];
                         transaction.add(new Pair(item, util)); //store in transaction with new name
                         Item itemObj = HTWUI.get(item - 1);
                         itemObj.TIDS.set(tid); //update the item's TidSet
-                        //update the item's maximum utility
-                        itemObj.maxUtil = Math.max(itemObj.maxUtil, util);
+                        itemObj.maxUtil = Math.max(itemObj.maxUtil, util); //update the item's maximum utility
                     }
                 }
                 if (!transaction.isEmpty()) {
                     Collections.sort(transaction); //sort transaction according to item name (faster fitness calc)
                     maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update longest transaction
-                    database.add(transaction); //store revised transaction
+                    //convert transaction to array (faster fitness calc) and add to db
+                    Pair[] trans = new Pair[transaction.size()];
+                    transaction.toArray(trans);
+                    database.add(trans);
                     tid++; //increment transaction id
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
+        long end = System.nanoTime();
+        count += end-s;
     }
 
 
