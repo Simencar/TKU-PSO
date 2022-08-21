@@ -4,10 +4,10 @@ import java.util.*;
 public class TOPK_PSO {
     List<Pair[]> database = new ArrayList<>(); //the database after pruning
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
-    private Particle[] pBest; //list of personal fittest descendant of each particle
+    private Particle[] pBest; //list of personal fittest offspring of each particle
     private Particle[] population; //population of current particles
     private int maxTransactionLength = 0; //the number of items in the largest transaction
-    private ArrayList<Item> HTWUI = new ArrayList<>(); //List of all HTWUI
+    private ArrayList<Item> HTWUI = new ArrayList<>(); //list of all HTWUI
     private HashSet<BitSet> explored; //set of current explored particles/itemsets
     private HashMap<Integer, Integer> itemNamesRev = new HashMap<>(); //maps new item names to original
     private int std; //mean deviation between maxUtils and avgUtils
@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 200; //Top-K HUIs to discover
+    final int k = 1; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -167,9 +167,7 @@ public class TOPK_PSO {
         maxMemory = 0;
         startTimestamp = System.currentTimeMillis();
 
-
         init(); //initialize db from input file and prune
-
         solutions = new Solutions(k); //class for maintaining the top-k HUIs
 
         checkMemory();
@@ -309,7 +307,7 @@ public class TOPK_PSO {
         }
         p.estFitness = avgEstimate ? HTWUI.get(item - 1).avgUtil : HTWUI.get(item - 1).maxUtil;
         if (p.X.cardinality() == 1) {
-            return HTWUI.get(item - 1).TIDS; //avoids bitset copies for 1-itemsets
+            return HTWUI.get(item - 1).TIDS; //avoids bitset clone for 1-itemsets
         }
         BitSet tidSet = (BitSet) HTWUI.get(item - 1).TIDS.clone(); //initial tidSet
         for (int i = p.X.nextSetBit(item + 1); i != -1; i = p.X.nextSetBit(i + 1)) {
@@ -334,6 +332,7 @@ public class TOPK_PSO {
      * @return The fitness of the particle
      */
     private int calcFitness(Particle p, BitSet tidSet, int idx) {
+
         if (tidSet == null) {
             return 0; // particle does not occur in any transaction
         }
@@ -355,17 +354,6 @@ public class TOPK_PSO {
 
         //calculate exact fitness
         int fitness = 0;
-//        for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
-//            int q = 0; //current index in transaction
-//            int item = p.X.nextSetBit(0); //current item we are looking for
-//            while (item != -1) {
-//                if (database.get(i).get(q).item == item) { //found item in transaction
-//                    fitness += database.get(i).get(q).utility;
-//                    item = p.X.nextSetBit(item + 1); //select next item in the itemset
-//                }
-//                q++;
-//            }
-//        }
         for (int i = tidSet.nextSetBit(0); i != -1; i = tidSet.nextSetBit(i + 1)) {
             int q = 0; //current index in transaction
             int item = p.X.nextSetBit(0); //current item we are looking for
@@ -603,7 +591,6 @@ public class TOPK_PSO {
             }
         }
 
-        long s = System.nanoTime();
         //2nd DB-scan: prune and initialize db
         try (BufferedReader reader = new BufferedReader(new FileReader(input))) {
             int tid = 0;
@@ -626,7 +613,7 @@ public class TOPK_PSO {
                 if (!transaction.isEmpty()) {
                     Collections.sort(transaction); //sort transaction according to item name (faster fitness calc)
                     maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update longest transaction
-                    //convert transaction to array (faster fitness calc) and add to db
+                    //convert transaction to array (better performance) and add to db
                     Pair[] trans = new Pair[transaction.size()];
                     transaction.toArray(trans);
                     database.add(trans);
@@ -634,8 +621,6 @@ public class TOPK_PSO {
                 }
             }
         }
-        long end = System.nanoTime();
-        count += end-s;
     }
 
 
