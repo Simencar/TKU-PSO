@@ -38,9 +38,9 @@ public class TOPK_PSO {
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
-    double maxMemory = 0; // the maximum memory usage
-    long startTimestamp = 0; // the time the algorithm started
-    long endTimestamp = 0; // the time the algorithm terminated
+    double maxMemory; // the maximum memory usage
+    long startTimestamp; // the time the algorithm started
+    long endTimestamp; // the time the algorithm terminated
 
 
     // this class represent an item and its utility in a transaction
