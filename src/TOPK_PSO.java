@@ -196,7 +196,6 @@ public class TOPK_PSO {
             for (int i = 0; i < iterations; i++) {
                 runRWS = true;
                 update(); //update and evaluate each particle in population
-
                 //gBest update RWS
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
@@ -604,10 +603,10 @@ public class TOPK_PSO {
                 if (!transaction.isEmpty()) {
                     Collections.sort(transaction); //sort transaction according to item name (faster fitness calc)
                     maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update longest transaction
-                    //convert transaction to array (better performance) and add to db
+                    //convert transaction to array (better performance in fitness calc)
                     Pair[] trans = new Pair[transaction.size()];
                     transaction.toArray(trans);
-                    database.add(trans);
+                    database.add(trans); //store revised transaction in db
                     tid++; //increment transaction id
                 }
             }
