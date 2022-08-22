@@ -26,7 +26,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "chess";
+    final String dataset = "mushroom";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     //final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1000; //Top-K HUIs to discover
+    final int k = 3000; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -186,7 +186,7 @@ public class TOPK_PSO {
         }
 
         explored = new HashSet<>();
-        explored.add(new BitSet(HTWUI.size()));
+        explored.add(new BitSet(HTWUI.size())); //avoids edge-case for empty particle
         if (HTWUI.size() != 0) {
             std = std / HTWUI.size(); // mean deviation
             generatePop(); //initialize the population
@@ -197,6 +197,7 @@ public class TOPK_PSO {
                 runRWS = true;
                 update(); //update and evaluate each particle in population
                 //gBest update RWS
+                long s = System.nanoTime();
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteTopK();
@@ -204,7 +205,10 @@ public class TOPK_PSO {
                     }
                     int pos = rouletteSelect(probRange);
                     selectGBest(pos);
+
                 }
+                long e = System.nanoTime();
+                count += e-s;
 
                 //Tighten std if mostly overestimates are made (only relevant when avgEstimate is active)
                 if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) {
@@ -492,6 +496,7 @@ public class TOPK_PSO {
         return pos;
     }
 
+
     /**
      * updates gBest to a current top-k HUI
      *
@@ -556,8 +561,8 @@ public class TOPK_PSO {
 
         //Set minUtil to utility of kth fittest 1-itemset
         ArrayList<Pair> utils = new ArrayList<>(twuAndUtilMap.size());
-        for (int item : twuAndUtilMap.keySet()) {
-            utils.add(new Pair(item, twuAndUtilMap.get(item).utility));
+        for (Map.Entry<Integer, TwuAndUtil> e : twuAndUtilMap.entrySet()) {
+            utils.add(new Pair(e.getKey(), e.getValue().utility));
         }
         utils.sort(Comparator.comparingInt(Pair::getUtility).reversed()); //sort based on utility
         int minUtil = (k <= utils.size()) ? utils.get(k - 1).utility : 0; //set min utility
@@ -570,7 +575,7 @@ public class TOPK_PSO {
         for (Pair p : utils) {
             TwuAndUtil tau = twuAndUtilMap.get(p.item);
             if (tau.twu >= minUtil) { //check if the item is HTWUI
-                itemNames[p.item] = name; // faster than hashmap in 2nd DB-scan below
+                itemNames[p.item] = name; // array because much faster than hashmap in 2nd DB-scan below
                 itemNamesRev.put(name, p.item);
                 //initialize some needed info for the item
                 Item item = new Item(name);
@@ -602,7 +607,8 @@ public class TOPK_PSO {
                 }
                 if (!transaction.isEmpty()) {
                     Collections.sort(transaction); //sort transaction according to item name (faster fitness calc)
-                    maxTransactionLength = Math.max(maxTransactionLength, transaction.size()); //update longest transaction
+                    //update longest transaction
+                    maxTransactionLength = Math.max(maxTransactionLength, transaction.size());
                     //convert transaction to array (better performance in fitness calc)
                     Pair[] trans = new Pair[transaction.size()];
                     transaction.toArray(trans);
