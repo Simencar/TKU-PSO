@@ -5,15 +5,15 @@ import java.util.HashSet;
 import java.util.TreeSet;
 
 /**
- * Compares the itemsets of two output files and prints the accuracy
+ * Finds the number of correct top-k patterns in an output file
  */
 public class FindAcc {
 
     public static void main(String[] args) {
-        String dataset = "kosarak200";
+        String dataset = "chess1000";
         //The solution file with the correct top-k patterns (output file of non-heuristic algorithm)
         String sols = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
-        //The file to validate the accuracy of (output file of heuristic algorithm)
+        //output file of heuristic algorithm
         String res = "D:\\Documents\\Skole\\Master\\Work\\out.txt";
         int solutions = 0;
         int found = 0;
@@ -65,9 +65,9 @@ public class FindAcc {
             e.printStackTrace();
         }
         double acc = (((double) found) / solutions) * 100;
-        System.out.println("Solutions: " +solutions);
-        System.out.println("Found:     " +found);
-        System.out.println("Accuracy:  " +acc + " %");
+        System.out.println("Solutions:        " +solutions);
+        System.out.println("Correct patterns: " +found);
+        System.out.println("Accuracy:         " +acc + " %");
 
     }
 }

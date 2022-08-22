@@ -26,7 +26,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "kosarak";
+    final String dataset = "chess";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     //final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 200; //Top-K HUIs to discover
+    final int k = 1000; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
