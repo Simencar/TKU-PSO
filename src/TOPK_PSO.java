@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1; //Top-K HUIs to discover
+    final int k = 200; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -186,6 +186,7 @@ public class TOPK_PSO {
         }
 
         explored = new HashSet<>();
+        explored.add(new BitSet(HTWUI.size()));
         if (HTWUI.size() != 0) {
             std = std / HTWUI.size(); // mean deviation
             generatePop(); //initialize the population
@@ -278,7 +279,6 @@ public class TOPK_PSO {
     /**
      * Fills the solution-set with 1-itemsets.
      * Repeats until there are k solutions or there are no more 1-itemsets
-     * Reason: to increase the minSolutionFitness quickly
      */
     private void fillSolutions() {
         while (solutions.getSize() < k && !sizeOneItemsets.isEmpty()) {
@@ -302,9 +302,6 @@ public class TOPK_PSO {
      */
     private BitSet pev_check(Particle p) {
         int item = p.X.nextSetBit(0);
-        if (item == -1) {
-            return null;
-        }
         p.estFitness = avgEstimate ? HTWUI.get(item - 1).avgUtil : HTWUI.get(item - 1).maxUtil;
         if (p.X.cardinality() == 1) {
             return HTWUI.get(item - 1).TIDS; //avoids bitset clone for 1-itemsets
@@ -332,10 +329,6 @@ public class TOPK_PSO {
      * @return The fitness of the particle
      */
     private int calcFitness(Particle p, BitSet tidSet, int idx) {
-
-        if (tidSet == null) {
-            return 0; // particle does not occur in any transaction
-        }
         //The particle only contains 1 item, return the fitness calculated during pre-processing
         if (p.X.cardinality() == 1) {
             return HTWUI.get(p.X.nextSetBit(0) - 1).totalUtil;
@@ -347,8 +340,7 @@ public class TOPK_PSO {
         int buffer = avgEstimate ? (std * support) : 0;
         if (idx != -1) {
             if (est + buffer < minSolutionFitness && est < pBest[idx].fitness) {
-                // Skip fitness calculation
-                return 0;
+                return 0;// Skip fitness calculation
             }
         }
 
@@ -365,7 +357,6 @@ public class TOPK_PSO {
                 q++;
             }
         }
-
 
         //Update overestimates and underestimates
         if (est + buffer < fitness) {
