@@ -10,7 +10,7 @@ import java.util.TreeSet;
 public class FindAcc {
 
     public static void main(String[] args) {
-        String dataset = "chess1000";
+        String dataset = "retail1000";
         //The solution file with the correct top-k patterns (output file of non-heuristic algorithm)
         String sols = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
         //output file of heuristic algorithm

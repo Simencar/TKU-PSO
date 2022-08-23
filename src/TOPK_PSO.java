@@ -26,7 +26,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "mushroom";
+    final String dataset = "retail";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     //final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 3000; //Top-K HUIs to discover
+    final int k = 1000; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -169,11 +169,11 @@ public class TOPK_PSO {
 
         init(); //initialize db from input file and prune
         solutions = new Solutions(k); //class for maintaining the top-k HUIs
-
         checkMemory();
 
-        System.out.println("TWU_SIZE: " + HTWUI.size());
-        System.out.println("mem: " + maxMemory);
+//        System.out.println("TWU_SIZE: " + HTWUI.size());
+//        System.out.println("mem: " + maxMemory);
+
 
         sizeOneItemsets = new TreeSet<>();
         //calculate average utility of each item and find the deviation between avgUtil & maxUtil
@@ -184,20 +184,19 @@ public class TOPK_PSO {
             sizeOneItemsets.add(item);
             twuSum += item.twu;
         }
-
-        explored = new HashSet<>();
+        explored = new HashSet<>(); //set for explored particles
         explored.add(new BitSet(HTWUI.size())); //avoids edge-case for empty particle
+
         if (HTWUI.size() != 0) {
             std = std / HTWUI.size(); // mean deviation
             generatePop(); //initialize the population
-            fillSolutions(); //if k > pop_size, fill the solution-set with the remaining 1-itemsets
+            fillSolutions(); // fill the solution-set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
 
             for (int i = 0; i < iterations; i++) {
                 runRWS = true;
                 update(); //update and evaluate each particle in population
                 //gBest update RWS
-                long s = System.nanoTime();
                 if (i > 1 && runRWS) {
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteTopK();
@@ -207,16 +206,14 @@ public class TOPK_PSO {
                     selectGBest(pos);
 
                 }
-                long e = System.nanoTime();
-                count += e-s;
 
                 //Tighten std if mostly overestimates are made (only relevant when avgEstimate is active)
                 if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) {
                     std = ((double) lowEst / highEst < 0.01) ? std / 2 : std;
                 }
-                if (i % 1000 == 0) {
-                    System.out.println(i);
-                }
+//                if (i % 1000 == 0) {
+//                    System.out.println(i);
+//                }
             }
         }
 
@@ -570,12 +567,12 @@ public class TOPK_PSO {
 
         //rename items from 1 to #1-HTWUI, items with high utility has name closer to 1
         //--> reduces memory usage, faster fit. calc, and better PEV-checks
-        int[] itemNames = new int[utils.size() + 1];
+        HashMap<Integer, Integer> itemNames = new HashMap<>();
         int name = 1;
         for (Pair p : utils) {
             TwuAndUtil tau = twuAndUtilMap.get(p.item);
             if (tau.twu >= minUtil) { //check if the item is HTWUI
-                itemNames[p.item] = name; // array because much faster than hashmap in 2nd DB-scan below
+                itemNames.put(p.item, name);
                 itemNamesRev.put(name, p.item);
                 //initialize some needed info for the item
                 Item item = new Item(name);
@@ -597,8 +594,8 @@ public class TOPK_PSO {
                 for (int i = 0; i < items.length; i++) {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
-                    if (itemNames[item] != 0) { //the item is HTWUI
-                        item = itemNames[item];
+                    if (itemNames.containsKey(item)) { //the item is HTWUI
+                        item = itemNames.get(item);
                         transaction.add(new Pair(item, util)); //store in transaction with new name
                         Item itemObj = HTWUI.get(item - 1);
                         itemObj.TIDS.set(tid); //update the item's TidSet
