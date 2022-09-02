@@ -22,8 +22,6 @@ public class TOPK_PSO {
     private long twuSum = 0; //the combined twu of all HTWUI (for faster RWS)
     long count = 0;
     long count2 = 0;
-    //ArrayList<Integer> it = new ArrayList<>();
-    //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
     final String dataset = "chainstore";
@@ -36,6 +34,8 @@ public class TOPK_PSO {
     final int iterations = 10000; // the number of iterations before termination
     final int k = 500; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
+    //avgEstimate should always be true if you are comparing to this algorithm
+    //maximum estimates are explained in CHUI-PSO paper
 
     //stats
     double maxMemory; // the maximum memory usage
@@ -172,9 +172,6 @@ public class TOPK_PSO {
         checkMemory();
 
 //        System.out.println("TWU_SIZE: " + HTWUI.size());
-//        System.out.println("mem: " + maxMemory);
-        System.out.println(maxTransactionLength);
-
 
         sizeOneItemsets = new TreeSet<>();
         //calculate average utility of each item and find the deviation between avgUtil & maxUtil
@@ -595,7 +592,7 @@ public class TOPK_PSO {
                     int item = Integer.parseInt(items[i]);
                     int util = Integer.parseInt(utilities[i]);
                     if (itemNames.containsKey(item)) { //the item is HTWUI
-                        item = itemNames.get(item);
+                        item = itemNames.get(item); //get the new name
                         transaction.add(new Pair(item, util)); //store in transaction with new name
                         Item itemObj = HTWUI.get(item - 1);
                         itemObj.TIDS.set(tid); //update the item's TidSet
@@ -633,35 +630,6 @@ public class TOPK_PSO {
         w.newLine();
         w.close();
     }
-
-    /*
-    private void writeRes() throws IOException {
-        StringBuilder sb = new StringBuilder();
-        String p;
-        if (prune) {
-            p = "_PRUNE";
-        } else {
-            p = "_NOPRUNE";
-        }
-        for (int i = 0; i < it.size(); i++) {
-            sb.append(it.get(i));
-            sb.append(",");
-            sb.append(pat.get(i));
-            sb.append(System.lineSeparator());
-        }
-        BufferedWriter w = new BufferedWriter(new FileWriter(convPath + "convergence" + p + ".csv"));
-        w.write(sb.toString());
-        w.newLine();
-        w.close();
-
-        sb = new StringBuilder();
-        sb.append(minUtil + "," + (minUtil * 1.0 / totalUtil) + "," + chuis.size() + "," + (endTimestamp - startTimestamp) + "," + (int) maxMemory);
-        BufferedWriter s = new BufferedWriter(new FileWriter(convPath + "log_" + p + ".csv", true));
-        s.write(sb.toString());
-        s.newLine();
-        s.close();
-    }
-     */
 
     /**
      * Print statistics about the latest execution to System.out.
