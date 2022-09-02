@@ -26,7 +26,7 @@ public class TOPK_PSO {
     //ArrayList<Integer> pat = new ArrayList<>();
 
     //file paths
-    final String dataset = "retail";
+    final String dataset = "chainstore";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
     //final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
@@ -34,7 +34,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 1000; //Top-K HUIs to discover
+    final int k = 500; //Top-K HUIs to discover
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
 
     //stats
@@ -173,6 +173,7 @@ public class TOPK_PSO {
 
 //        System.out.println("TWU_SIZE: " + HTWUI.size());
 //        System.out.println("mem: " + maxMemory);
+        System.out.println(maxTransactionLength);
 
 
         sizeOneItemsets = new TreeSet<>();
@@ -298,7 +299,7 @@ public class TOPK_PSO {
      * it also calculates the avg/max fitness estimate and returns the TidSet of the particle.
      *
      * @param p The particle
-     * @return orgBitSet: The transactions the particle occur (TidSet)
+     * @return tidSet: The transactions the particle occur
      */
     private BitSet pev_check(Particle p) {
         int item = p.X.nextSetBit(0);
@@ -389,7 +390,6 @@ public class TOPK_PSO {
                     p.X.flip(item.item);
                 }
             }
-
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
                 BitSet copy = (BitSet) p.X.clone(); //bitset before pev
