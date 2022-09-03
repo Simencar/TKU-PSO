@@ -109,10 +109,6 @@ public class TOPK_PSO {
             this.fitness = fitness;
         }
 
-        public String toString() {
-            return String.valueOf(fitness);
-        }
-
         public int compareTo(Particle o) {
             return (this.fitness <= o.fitness) ? -1 : 1;
         }
