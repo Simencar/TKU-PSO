@@ -5,7 +5,7 @@ public class TOPK_PSO {
     List<Pair[]> database = new ArrayList<>(); //the database after pruning
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
     private Particle[] pBest; //list of personal fittest offspring of each particle
-    private Particle[] population; //population of current particles
+    private Particle[] population; //the population
     private int maxTransactionLength = 0; //the number of items in the largest transaction
     private ArrayList<Item> HTWUI = new ArrayList<>(); //list of all HTWUI
     private HashSet<BitSet> explored; //set of current explored particles/itemsets
@@ -20,19 +20,17 @@ public class TOPK_PSO {
     private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
     private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
     private long twuSum = 0; //the combined twu of all HTWUI (for faster RWS)
-    long count = 0;
-    long count2 = 0;
+
 
     //file paths
-    final String dataset = "chainstore";
+    final String dataset = "kosarak";
     final String input = "D:\\Documents\\Skole\\Master\\Work\\" + dataset + ".txt"; //input file path
     final String output = "D:\\Documents\\Skole\\Master\\Work\\out.txt"; //output file path
-    //final String convPath = "D:\\Documents\\Skole\\Master\\Experiments\\" + dataset + "\\";
 
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500; //Top-K HUIs to discover
+    final int k = 500; //the desired number of top-k HUIs
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
     //avgEstimate should always be true if you are comparing to this algorithm
     //maximum estimates are explained in CHUI-PSO paper
@@ -191,7 +189,7 @@ public class TOPK_PSO {
             fillSolutions(); // fill the solution-set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
 
-            for (int i = 0; i < iterations; i++) {
+            for (int i = 0; i < iterations; i++) {  //let the fun begin
                 runRWS = true;
                 update(); //update and evaluate each particle in population
                 //gBest update RWS
@@ -202,7 +200,6 @@ public class TOPK_PSO {
                     }
                     int pos = rouletteSelect(probRange);
                     selectGBest(pos);
-
                 }
 
                 //Tighten std if mostly overestimates are made (only relevant when avgEstimate is active)
@@ -218,12 +215,6 @@ public class TOPK_PSO {
         endTimestamp = System.currentTimeMillis();
         checkMemory();
         writeOut();
-        System.out.println("skipped:  " + count);
-        System.out.println("skipped2: " + count2);
-        System.out.println("explored: " + explored.size());
-        System.out.println("over    : " + highEst);
-        System.out.println("under   : " + lowEst);
-        //writeRes();
     }
 
 
@@ -277,6 +268,7 @@ public class TOPK_PSO {
     /**
      * Fills the solution-set with 1-itemsets.
      * Repeats until there are k solutions or there are no more 1-itemsets
+     * Purpose: increase minimum solution fitness
      */
     private void fillSolutions() {
         while (solutions.getSize() < k && !sizeOneItemsets.isEmpty()) {
@@ -563,7 +555,9 @@ public class TOPK_PSO {
         System.out.println("minUtil: " + minUtil);
 
         //rename items from 1 to #1-HTWUI, items with high utility has name closer to 1
-        //--> reduces memory usage, faster fit. calc, and better PEV-checks
+        //--> reduces memory usage (cuz bitset)
+        //--> faster fit. calc. (cuz promising items are early in trans. -> Many particles will contain these)
+        //--> better PEV-check (cuz promising items are evaluated first)
         HashMap<Integer, Integer> itemNames = new HashMap<>();
         int name = 1;
         for (Pair p : utils) {
@@ -600,7 +594,7 @@ public class TOPK_PSO {
                     }
                 }
                 if (!transaction.isEmpty()) {
-                    Collections.sort(transaction); //sort transaction according to item name (faster fitness calc)
+                    Collections.sort(transaction); //sort transaction according to item name (much faster fitness calc)
                     //update longest transaction
                     maxTransactionLength = Math.max(maxTransactionLength, transaction.size());
                     //convert transaction to array (better performance in fitness calc)
