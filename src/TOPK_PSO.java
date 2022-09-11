@@ -30,7 +30,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 500; //the desired number of top-k HUIs
+    final int k = 200; //the desired number of top-k HUIs
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
     //avgEstimate should always be true if you are comparing to this algorithm
     //maximum estimates are explained in CHUI-PSO paper
@@ -165,7 +165,7 @@ public class TOPK_PSO {
         solutions = new Solutions(k); //class for maintaining the top-k HUIs
         checkMemory();
 
-//        System.out.println("TWU_SIZE: " + HTWUI.size());
+        System.out.println("TWU_SIZE: " + HTWUI.size());
 
         sizeOneItemsets = new TreeSet<>();
         //calculate average utility of each item and find the deviation between avgUtil & maxUtil
@@ -617,7 +617,6 @@ public class TOPK_PSO {
         }
         BufferedWriter w = new BufferedWriter(new FileWriter(output));
         w.write(sb.toString());
-        w.newLine();
         w.close();
     }
 

@@ -1,8 +1,7 @@
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
-import java.util.HashSet;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  * Finds the number of correct top-k patterns in an output file
@@ -10,7 +9,7 @@ import java.util.TreeSet;
 public class FindAcc {
 
     public static void main(String[] args) {
-        String dataset = "mushroom10000";
+        String dataset = "kosarak200";
         //The solution file with the correct top-k patterns (output file of non-heuristic algorithm)
         String sols = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
         //output file of heuristic algorithm
@@ -36,6 +35,7 @@ public class FindAcc {
                 if(!itemset.isEmpty()) {
                     solutions++;
                 }
+
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -60,12 +60,15 @@ public class FindAcc {
                     System.out.println("PROBLEM!!!!");
                 }
                 dup.add(itemset);
+
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+
         double acc = (((double) found) / solutions) * 100;
-        System.out.println("Solutions:        " +solutions);
+        System.out.println("k:                " +solutions);
         System.out.println("Correct patterns: " +found);
         System.out.println("Accuracy:         " +acc + " %");
 
