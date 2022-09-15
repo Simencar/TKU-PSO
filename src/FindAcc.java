@@ -66,7 +66,6 @@ public class FindAcc {
             e.printStackTrace();
         }
 
-
         double acc = (((double) found) / solutions) * 100;
         System.out.println("k:                " +solutions);
         System.out.println("Correct patterns: " +found);

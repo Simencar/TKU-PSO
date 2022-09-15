@@ -16,10 +16,10 @@ public class TOPK_PSO {
     private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
     private Solutions solutions; //class that handles storage of the top-k HUIs
     private boolean newS = false; //true if a new top-k HUI is discovered at current iteration
-    private TreeSet<Item> sizeOneItemsets; //set with all 1-itemsets and their utility
+    private TreeSet<Item> sizeOneItemsets; //set with all 1-itemsets, sorted according to utility
     private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
-    private long utilSum = 0; // the combined utility of all current top-k HUIs (for faster RWS)
-    private long twuSum = 0; //the combined twu of all HTWUI (for faster RWS)
+    private long utilSum = 0; // the combined utility of all current top-k HUIs (for RWS)
+    private long twuSum = 0; //the combined twu of all HTWUI (for RWS)
 
 
     //file paths
@@ -128,7 +128,7 @@ public class TOPK_PSO {
         //adds a new top-k HUI to the solution set
         public void add(Particle p) {
             if (sol.size() == size) {
-                utilSum -= sol.pollLast().fitness; //remove the kth HUI and update utilSum
+                utilSum -= sol.pollLast().fitness; //set is full, remove the kth HUI and update utilSum
             }
             //disable RWS on gBest this iteration if particle is the new fittest solution
             if (!sol.isEmpty()) {
@@ -168,13 +168,12 @@ public class TOPK_PSO {
         System.out.println("TWU_SIZE: " + HTWUI.size());
 
         sizeOneItemsets = new TreeSet<>();
-        //calculate average utility of each item and find the deviation between avgUtil & maxUtil
         std = 0; // the deviation
         for (Item item : HTWUI) {
-            item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality());
-            std += item.maxUtil - item.avgUtil;
-            sizeOneItemsets.add(item);
-            twuSum += item.twu;
+            item.avgUtil = 1 + (item.totalUtil / item.TIDS.cardinality()); //find average utility
+            std += item.maxUtil - item.avgUtil; //update deviation
+            sizeOneItemsets.add(item); //store 1-itemset (for population initialization strategy)
+            twuSum += item.twu; //update twu sum
         }
         explored = new HashSet<>(); //set for explored particles
         explored.add(new BitSet(HTWUI.size())); //avoids edge-case for empty particle
@@ -185,7 +184,7 @@ public class TOPK_PSO {
             fillSolutions(); // fill the solution-set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
 
-            for (int i = 0; i < iterations; i++) {  //let the fun begin
+            for (int i = 0; i < iterations; i++) { //main loop
                 runRWS = true;
                 update(); //update and evaluate each particle in population
                 //gBest update RWS
@@ -197,17 +196,12 @@ public class TOPK_PSO {
                     int pos = rouletteSelect(probRange);
                     selectGBest(pos);
                 }
-
                 //Tighten std if mostly overestimates are made (only relevant when avgEstimate is active)
                 if (i % 25 == 0 && highEst > 0 && i > 0 && std != 1) {
                     std = ((double) lowEst / highEst < 0.01) ? std / 2 : std;
                 }
-//                if (i % 1000 == 0) {
-//                    System.out.println(i);
-//                }
             }
         }
-
         endTimestamp = System.currentTimeMillis();
         checkMemory();
         writeOut();
@@ -551,9 +545,9 @@ public class TOPK_PSO {
         System.out.println("minUtil: " + minUtil);
 
         //rename items from 1 to #1-HTWUI, items with high utility has name closer to 1
-        //--> reduces memory usage (cuz bitset)
-        //--> faster fit. calc. (cuz promising items are early in trans. -> Many particles will contain these)
-        //--> better PEV-check (cuz promising items are evaluated first)
+        //--> reduces memory usage (bec. bitset)
+        //--> faster fit. calc. (bec. promising items are early in trans. -> Many particles will contain these)
+        //--> better PEV-check (bec. promising items are evaluated first)
         HashMap<Integer, Integer> itemNames = new HashMap<>();
         int name = 1;
         for (Pair p : utils) {
@@ -591,7 +585,7 @@ public class TOPK_PSO {
                 }
                 if (!transaction.isEmpty()) {
                     Collections.sort(transaction); //sort transaction according to item name (much faster fitness calc)
-                    //update longest transaction
+                    //update longest transaction (for roulette wheel initialization)
                     maxTransactionLength = Math.max(maxTransactionLength, transaction.size());
                     //convert transaction to array (better performance in fitness calc)
                     Pair[] trans = new Pair[transaction.size()];
