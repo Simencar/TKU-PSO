@@ -1,7 +1,8 @@
 import java.io.*;
 import java.util.*;
 
-public class TOPK_PSO {
+public class TKU_PSO {
+    //DO NOT CHANGE!
     List<Pair[]> database = new ArrayList<>(); //the database after pruning
     private Particle gBest; //the global fittest particle (or a top-K HUI selected with RWS)
     private Particle[] pBest; //list of personal fittest offspring of each particle
@@ -30,7 +31,7 @@ public class TOPK_PSO {
     //Algorithm parameters
     final int pop_size = 20; // the size of the population
     final int iterations = 10000; // the number of iterations before termination
-    final int k = 200; //the desired number of top-k HUIs
+    final int k = 1000; //the desired number of top-k HUIs
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
     //avgEstimate should always be true if you are comparing to this algorithm
     //maximum estimates are explained in CHUI-PSO paper
@@ -116,18 +117,18 @@ public class TOPK_PSO {
 
     //class for maintaining the top-k solutions
     private class Solutions {
-        final int size;
+        final int capacity; //max size of set, i.e. -> k
         TreeSet<Particle> sol = new TreeSet<>(Comparator.reverseOrder()); //reversed for faster Roulette wheel sel.
         //TreeSet cannot contain duplicate elements. The compareTo of Particle must therefore not return 0 for any case
         //as it will not be able to store solutions with identical fitness
 
-        public Solutions(int size) {
-            this.size = size;
+        public Solutions(int k) {
+            this.capacity = k;
         }
 
         //adds a new top-k HUI to the solution set
         public void add(Particle p) {
-            if (sol.size() == size) {
+            if (sol.size() == capacity) {
                 utilSum -= sol.pollLast().fitness; //set is full, remove the kth HUI and update utilSum
             }
             //disable RWS on gBest this iteration if particle is the new fittest solution
@@ -137,7 +138,7 @@ public class TOPK_PSO {
             sol.add(p); // add the new HUI
             utilSum += p.fitness; //update utilSum
             newS = true; //notify new solution is discovered
-            if (sol.size() == size) {
+            if (sol.size() == capacity) {
                 minSolutionFitness = sol.last().fitness; //update MSF
             }
         }
@@ -187,8 +188,7 @@ public class TOPK_PSO {
             for (int i = 0; i < iterations; i++) { //main loop
                 runRWS = true;
                 update(); //update and evaluate each particle in population
-                //gBest update RWS
-                if (i > 1 && runRWS) {
+                if (i > 1 && runRWS) { //RWS update of gBest
                     if (newS) { //new solutions are discovered, probability range must be updated
                         probRange = rouletteTopK();
                         newS = false;
@@ -331,7 +331,7 @@ public class TOPK_PSO {
             int item = p.X.nextSetBit(0); //current item we are looking for
             while (item != -1) {
                 if (database.get(i)[q].item == item) { //found item in transaction
-                    fitness += database.get(i)[q].utility;
+                    fitness += database.get(i)[q].utility; //append utility to fitness
                     item = p.X.nextSetBit(item + 1); //select next item in the itemset
                 }
                 q++;
@@ -356,8 +356,7 @@ public class TOPK_PSO {
             Particle p = population[i];
             List<Integer> diffList = bitDiff(pBest[i], p); //different items between pBest and current particle
             changeParticle(diffList, p); //change a random amount of these items in p
-            //repeat for gBest
-            diffList = bitDiff(gBest, p);
+            diffList = bitDiff(gBest, p); //repeat for gBest
             changeParticle(diffList, p);
 
             if (explored.contains(p.X)) { //the particle is already explored, change one random item
@@ -371,7 +370,7 @@ public class TOPK_PSO {
             }
             //avoid PEV-check and fit. calc. if particle is already explored
             if (!explored.contains(p.X)) {
-                BitSet copy = (BitSet) p.X.clone(); //bitset before pev
+                BitSet copy = (BitSet) p.X.clone(); //particle before pev
                 BitSet tidSet = pev_check(p);
                 //check if explored again because pev_check can change the particle
                 if (!explored.contains(p.X)) {
@@ -474,7 +473,7 @@ public class TOPK_PSO {
 
 
     /**
-     * updates gBest to a current top-k HUI
+     * updates gBest to the top-k HUI at pos
      *
      * @param pos the position of the selected HUI in the solution set
      */
@@ -482,7 +481,7 @@ public class TOPK_PSO {
         int c = 0;
         for (Particle p : solutions.getSol()) {
             if (c == pos) {
-                gBest = new Particle(p.X, p.fitness);
+                gBest = p;
                 break;
             }
             c++;
@@ -619,14 +618,14 @@ public class TOPK_PSO {
      */
     public void printStats() {
         System.out
-                .println("============= STATS =============");
+                .println("============= STATS ==============");
         System.out.println(" Total time ~ " + (endTimestamp - startTimestamp)
                 + " ms");
         System.out.println(" Memory ~ " + maxMemory + " MB");
         System.out.println(" Discovered Utility   : " + utilSum);
         System.out.println(" Min Solution Fitness : " + minSolutionFitness);
         System.out
-                .println("===================================================");
+                .println("==================================");
     }
 
     private void checkMemory() {

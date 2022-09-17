@@ -9,7 +9,7 @@ import java.util.*;
 public class FindAcc {
 
     public static void main(String[] args) {
-        String dataset = "kosarak200";
+        String dataset = "mushroom10000";
         //The solution file with the correct top-k patterns (output file of non-heuristic algorithm)
         String sols = "D:\\Documents\\Skole\\Master\\Experiments\\TOPK\\Solutions\\"+dataset+".txt";
         //output file of heuristic algorithm
