@@ -1,6 +1,8 @@
 import java.io.*;
 import java.util.*;
 
+
+//@author Simen Carstensen
 public class TKU_PSO {
     //DO NOT CHANGE!
     List<Pair[]> database = new ArrayList<>(); //the database after pruning
