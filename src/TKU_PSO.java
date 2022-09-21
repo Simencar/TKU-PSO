@@ -168,7 +168,7 @@ public class TKU_PSO {
         solutions = new Solutions(k); //class for maintaining the top-k HUIs
         checkMemory();
 
-        System.out.println("TWU_SIZE: " + HTWUI.size());
+        System.out.println("HTWUI_SIZE: " + HTWUI.size());
 
         sizeOneItemsets = new TreeSet<>();
         std = 0; // the deviation
