@@ -187,7 +187,7 @@ public class TKU_PSO {
             fillSolutions(); // fill the solution-set with the remaining 1-itemsets
             List<Double> probRange = rouletteTopK(); //roulette probabilities for current top-k HUIs
 
-            for (int i = 0; i < iterations; i++) { //main loop
+            for (int i = 0; i < iterations; i++) { //<-----------------MAIN LOOP
                 runRWS = true;
                 update(); //update and evaluate each particle in population
                 if (i > 1 && runRWS) { //RWS update of gBest
