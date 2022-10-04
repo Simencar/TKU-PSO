@@ -16,13 +16,13 @@ public class TKU_PSO {
     private int std; //mean deviation between maxUtils and avgUtils
     private int lowEst = 0; //number of fitness underestimates
     private int highEst = 0; //number of fitness overestimates
-    private int minSolutionFitness = 0; //the lowest utility of current top-k HUIs (0 if less than k current HUIs)
+    private int minSolutionFitness = 0; //the smallest utility of current top-k HUIs (0 if less than k current HUIs)
     private Solutions solutions; //class that handles storage of the top-k HUIs
     private boolean newS = false; //true if a new top-k HUI is discovered at current iteration
     private TreeSet<Item> sizeOneItemsets; //set with all 1-itemsets, sorted according to utility
     private boolean runRWS = true; //true if RWS on gBest should be used at the current iteration
     private long utilSum = 0; // the combined utility of all current top-k HUIs (for RWS)
-    private long twuSum = 0; //the combined twu of all HTWUI (for RWS)
+    private long twuSum = 0; //the combined twu of all HTWUIs (for RWS)
 
 
     //file paths
@@ -36,7 +36,6 @@ public class TKU_PSO {
     final int k = 1000; //the desired number of top-k HUIs
     final boolean avgEstimate = true; //true: use average estimates, false: use maximum estimates
     //avgEstimate should always be true if you are comparing to this algorithm
-    //maximum estimates are explained in CHUI-PSO paper
 
     //stats
     double maxMemory; // the maximum memory usage
