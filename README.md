@@ -1,5 +1,5 @@
 # TKU-PSO
-This is a repository for TKU-PSO, a Particle swarm optimization algorithm for mining top-k high-utility itemsets.
+This is a repository for TKU-PSO, a Particle swarm optimization algorithm for top-k high-utility itemsets mining in quantitative transactional data.
 
 How to run:
 * Select algorithm parameters in TKU_PSO.java (k, pop_size, and iterations).
