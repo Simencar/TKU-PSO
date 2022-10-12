@@ -356,7 +356,7 @@ public class TKU_PSO {
         for (int i = 0; i < pop_size; i++) {
             Particle p = population[i];
             List<Integer> diffList = bitDiff(pBest[i], p); //different items between pBest and current particle
-            changeParticle(diffList, p); //change a random amount of these items in p
+            changeParticle(diffList, p); //change a random number of these items in p
             diffList = bitDiff(gBest, p); //repeat for gBest
             changeParticle(diffList, p);
 
